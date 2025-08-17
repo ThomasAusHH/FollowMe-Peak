@@ -1,0 +1,441 @@
+﻿using BepInEx;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using HarmonyLib;
+using Newtonsoft.Json;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Zorro.Core;
+
+namespace PeakPathfinder
+{
+    public class PathData
+    {
+        public Guid Id { get; set; }
+        public DateTime CreationTime { get; set; }
+        public string BiomeName { get; set; }
+        public float DurationInSeconds { get; set; }
+        public List<SerializableVector3> Points { get; set; }
+    }
+
+    public struct SerializableVector3
+    {
+        public float X, Y, Z;
+        public SerializableVector3(Vector3 vec) { X = vec.x; Y = vec.y; Z = vec.z; }
+        public Vector3 ToVector3() { return new Vector3(X, Y, Z); }
+    }
+
+    [BepInPlugin("com.thomasaushh.peakpathfinder", "Peak Pathfinder", "1.0.0")]
+    public class Plugin : BaseUnityPlugin
+    {
+        // --- Kernlogik Variablen ---
+        private List<Vector3> currentRecordedPath = new List<Vector3>();
+        private bool isRecording = false;
+        private float recordingStartTime;
+        private string currentLevelID = "";
+        
+        // --- UI & Pfad-Verwaltung ---
+        private List<PathData> allLoadedPaths = new List<PathData>();
+        private Dictionary<Guid, bool> pathVisibility = new Dictionary<Guid, bool>();
+        private Dictionary<Guid, GameObject> pathVisualizerObjects = new Dictionary<Guid, GameObject>();
+        private bool showMenu = false;
+        private Rect menuRect = new Rect(20, 20, 550, 500);
+        private Vector2 scrollPosition = Vector2.zero;
+        
+        // --- NEU: Variablen für Filter & Sortierung ---
+        private string biomeFilter = "";
+        private string dateFilter = "";
+        private string durationFilter = "";
+
+        private enum SortColumn { CreationTime, BiomeName, Duration }
+        private SortColumn currentSortColumn = SortColumn.CreationTime;
+        private bool sortAscending = false;
+
+        public static Plugin Instance { get; private set; }
+        public static string BiomeNameOfCompletedSegment { get; set; }
+
+        private void Awake()
+        {
+            Instance = this;
+            Logger.LogInfo($"Plugin {Info.Metadata.GUID} wurde geladen!");
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            Harmony.CreateAndPatchAll(typeof(PluginPatches));
+            Logger.LogInfo("Harmony Patches wurden angewendet.");
+        }
+        
+        private void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                showMenu = !showMenu;
+            }
+        }
+        
+        #region UI (OnGUI)
+
+        private void OnGUI()
+        {
+            if (showMenu)
+            {
+                GUI.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+                menuRect = GUILayout.Window(0, menuRect, DrawMenuWindow, "Peak Pathfinder - Journal");
+            }
+        }
+
+        void DrawMenuWindow(int windowID)
+        {
+            // --- Filter-Sektion ---
+            GUILayout.BeginHorizontal("box");
+            GUILayout.Label("Filter:", GUILayout.Width(50));
+            GUILayout.Label("Biom:", GUILayout.Width(40));
+            biomeFilter = GUILayout.TextField(biomeFilter, GUILayout.Width(100));
+            GUILayout.Label("Datum (TT.MM.JJ):", GUILayout.Width(120));
+            dateFilter = GUILayout.TextField(dateFilter, GUILayout.Width(80));
+            GUILayout.EndHorizontal();
+
+            // --- Sortier-Header ---
+            GUILayout.BeginHorizontal();
+            if(GUILayout.Button(GetSortLabel("Biom", SortColumn.BiomeName))) SetSortColumn(SortColumn.BiomeName);
+            if(GUILayout.Button(GetSortLabel("Dauer", SortColumn.Duration))) SetSortColumn(SortColumn.Duration);
+            if(GUILayout.Button(GetSortLabel("Datum", SortColumn.CreationTime))) SetSortColumn(SortColumn.CreationTime);
+            GUILayout.EndHorizontal();
+
+            // --- Pfad-Liste (gefiltert und sortiert) ---
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition);
+            
+            var processedPaths = GetProcessedPaths();
+            List<Guid> pathsToDelete = new List<Guid>();
+
+            foreach (var pathData in processedPaths)
+            {
+                GUILayout.BeginHorizontal("box");
+
+                bool isVisible = pathVisibility.ContainsKey(pathData.Id) && pathVisibility[pathData.Id];
+                if (GUILayout.Toggle(isVisible, "👁️") != isVisible)
+                {
+                    pathVisibility[pathData.Id] = !isVisible;
+                    UpdatePathVisuals();
+                }
+
+                TimeSpan time = TimeSpan.FromSeconds(pathData.DurationInSeconds);
+                string durationString = $"{time.Minutes:D2}m:{time.Seconds:D2}s";
+                GUILayout.Label($"[{pathData.BiomeName ?? "N/A"}] - {durationString} ({pathData.CreationTime:dd.MM.yy})", GUILayout.ExpandWidth(true));
+
+                if (GUILayout.Button("E", GUILayout.Width(30))) ExportPath(pathData); // Export
+                if (GUILayout.Button("X", GUILayout.Width(30))) pathsToDelete.Add(pathData.Id); // Delete
+                
+                GUILayout.EndHorizontal();
+            }
+
+            if (pathsToDelete.Count > 0)
+            {
+                allLoadedPaths.RemoveAll(p => pathsToDelete.Contains(p.Id));
+                pathsToDelete.ForEach(id => pathVisibility.Remove(id));
+                SavePathsToFile(false);
+                UpdatePathVisuals();
+            }
+
+            GUILayout.EndScrollView();
+            GUILayout.Space(10);
+            
+            // --- Aktionen ---
+            GUILayout.BeginHorizontal();
+            if(GUILayout.Button("Alle anzeigen")) { allLoadedPaths.ForEach(p => pathVisibility[p.Id] = true); UpdatePathVisuals(); }
+            if(GUILayout.Button("Alle ausblenden")) { allLoadedPaths.ForEach(p => pathVisibility[p.Id] = false); UpdatePathVisuals(); }
+            if(GUILayout.Button("Pfade importieren")) ImportPaths();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 20));
+        }
+        
+        private List<PathData> GetProcessedPaths()
+        {
+            IEnumerable<PathData> processed = allLoadedPaths;
+
+            // Filtern
+            if (!string.IsNullOrWhiteSpace(biomeFilter))
+                processed = processed.Where(p => p.BiomeName.IndexOf(biomeFilter, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (!string.IsNullOrWhiteSpace(dateFilter))
+                processed = processed.Where(p => p.CreationTime.ToString("dd.MM.yy").Contains(dateFilter));
+            
+            // Sortieren
+            switch (currentSortColumn)
+            {
+                case SortColumn.BiomeName:
+                    processed = sortAscending ? processed.OrderBy(p => p.BiomeName) : processed.OrderByDescending(p => p.BiomeName);
+                    break;
+                case SortColumn.Duration:
+                    processed = sortAscending ? processed.OrderBy(p => p.DurationInSeconds) : processed.OrderByDescending(p => p.DurationInSeconds);
+                    break;
+                case SortColumn.CreationTime:
+                    processed = sortAscending ? processed.OrderBy(p => p.CreationTime) : processed.OrderByDescending(p => p.CreationTime);
+                    break;
+            }
+            return processed.ToList();
+        }
+
+        private void SetSortColumn(SortColumn column)
+        {
+            if (currentSortColumn == column) sortAscending = !sortAscending;
+            else
+            {
+                currentSortColumn = column;
+                sortAscending = true;
+            }
+        }
+
+        private string GetSortLabel(string label, SortColumn column)
+        {
+            if (currentSortColumn != column) return label;
+            return label + (sortAscending ? " ▲" : " ▼");
+        }
+
+        #endregion
+
+        #region Import/Export
+        
+        private void ExportPath(PathData pathData)
+        {
+            try
+            {
+                string exportDir = Path.Combine(Paths.PluginPath, "PeakPathfinder_Data", "Exports");
+                Directory.CreateDirectory(exportDir);
+                string filename = $"Path_{pathData.BiomeName}_{pathData.CreationTime:yyyy-MM-dd_HH-mm-ss}.json";
+                string filePath = Path.Combine(exportDir, filename);
+                string json = JsonConvert.SerializeObject(pathData, Formatting.Indented);
+                File.WriteAllText(filePath, json);
+                Logger.LogInfo($"Pfad exportiert nach: {filePath}");
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Fehler beim Exportieren des Pfades: {e}");
+            }
+        }
+
+        private void ImportPaths()
+        {
+            try
+            {
+                string importDir = Path.Combine(Paths.PluginPath, "PeakPathfinder_Data", "Imports");
+                Directory.CreateDirectory(importDir);
+                var files = Directory.GetFiles(importDir, "*.json");
+                int importCount = 0;
+
+                foreach (var file in files)
+                {
+                    string json = File.ReadAllText(file);
+                    var pathData = JsonConvert.DeserializeObject<PathData>(json);
+
+                    if (pathData != null && !allLoadedPaths.Any(p => p.Id == pathData.Id))
+                    {
+                        allLoadedPaths.Add(pathData);
+                        pathVisibility[pathData.Id] = false;
+                        importCount++;
+                    }
+                    File.Delete(file); // Lösche die Datei nach dem Import
+                }
+
+                if (importCount > 0)
+                {
+                    Logger.LogInfo($"{importCount} neue Pfade importiert.");
+                    SavePathsToFile(false); // Speichere die neue Sammlung
+                }
+                else
+                {
+                    Logger.LogInfo("Keine neuen Pfade im Import-Ordner gefunden.");
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Fehler beim Importieren von Pfaden: {e}");
+            }
+        }
+
+        #endregion
+
+        #region Kernlogik (Aufnahme, Speichern, Laden, Visualisierung) - Unverändert
+        
+        // Die folgenden Methoden sind funktional unverändert und werden hier der Vollständigkeit halber aufgeführt.
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name.StartsWith("Level_"))
+            {
+                StartCoroutine(InitializePathSystem(scene));
+                StartRecording();
+            }
+            else
+            {
+                currentLevelID = "";
+                UpdatePathVisuals();
+            }
+        }
+
+        private IEnumerator InitializePathSystem(Scene scene)
+        {
+            yield return new WaitForSeconds(0.5f);
+            var nextLevelService = GameHandler.GetService<NextLevelService>();
+            if (nextLevelService != null && nextLevelService.Data.IsSome)
+            {
+                int levelIndex = nextLevelService.Data.Value.CurrentLevelIndex;
+                currentLevelID = $"{scene.name}_{levelIndex}";
+                Logger.LogInfo($"Level erkannt: {currentLevelID}");
+                LoadPathsFromFile();
+            }
+            else
+            {
+                Logger.LogError("NextLevelService oder dessen Daten konnten nicht gefunden werden!");
+                currentLevelID = scene.name + "_unknown";
+            }
+        }
+        
+        public void StartRecording()
+        {
+            if (isRecording) return;
+            isRecording = true;
+            currentRecordedPath.Clear();
+            recordingStartTime = Time.time;
+            Logger.LogInfo("Pfad-Aufzeichnung gestartet!");
+            StartCoroutine(RecordPathRoutine());
+        }
+
+        public void StopRecording()
+        {
+            if (!isRecording) return;
+            isRecording = false;
+            Logger.LogInfo($"Aufzeichnung gestoppt. {currentRecordedPath.Count} Punkte zwischengespeichert.");
+        }
+
+        private IEnumerator RecordPathRoutine()
+        {
+            while (isRecording)
+            {
+                if (Camera.main != null) currentRecordedPath.Add(Camera.main.transform.position);
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
+
+        public void SavePathsToFile(bool addNewPath = true)
+        {
+            if (string.IsNullOrEmpty(currentLevelID) || currentLevelID.EndsWith("_unknown")) return;
+            
+            if (addNewPath)
+            {
+                StopRecording();
+                if (currentRecordedPath.Count < 2) return;
+                
+                string currentBiome = BiomeNameOfCompletedSegment ?? "Unbekannt";
+                
+                var newPathData = new PathData
+                {
+                    Id = Guid.NewGuid(),
+                    CreationTime = DateTime.Now,
+                    BiomeName = currentBiome,
+                    DurationInSeconds = Time.time - recordingStartTime,
+                    Points = currentRecordedPath.Select(vec => new SerializableVector3(vec)).ToList()
+                };
+                allLoadedPaths.Add(newPathData);
+            }
+            
+            try
+            {
+                string directoryPath = Path.Combine(Paths.PluginPath, "PeakPathfinder_Data");
+                Directory.CreateDirectory(directoryPath);
+                string filePath = Path.Combine(directoryPath, $"{currentLevelID}.json");
+                string json = JsonConvert.SerializeObject(allLoadedPaths, Formatting.Indented);
+                File.WriteAllText(filePath, json);
+                Logger.LogInfo($"Erfolgreich {allLoadedPaths.Count} Pfade in '{filePath}' gespeichert.");
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Fehler beim Speichern der Pfade: {e}");
+            }
+        }
+
+        public void LoadPathsFromFile()
+        {
+            allLoadedPaths.Clear();
+            pathVisibility.Clear();
+            if (string.IsNullOrEmpty(currentLevelID) || currentLevelID.EndsWith("_unknown")) return;
+            
+            string filePath = Path.Combine(Paths.PluginPath, "PeakPathfinder_Data", $"{currentLevelID}.json");
+            if (!File.Exists(filePath))
+            {
+                Logger.LogInfo($"Keine Pfad-Datei für '{currentLevelID}' gefunden.");
+                return;
+            }
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                allLoadedPaths = JsonConvert.DeserializeObject<List<PathData>>(json) ?? new List<PathData>();
+                foreach (var pathData in allLoadedPaths)
+                {
+                    pathVisibility[pathData.Id] = false;
+                }
+                Logger.LogInfo($"{allLoadedPaths.Count} Pfade für Level '{currentLevelID}' geladen.");
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Fehler beim Laden der Pfade (möglicherweise altes Format?): {e.Message}");
+            }
+        }
+
+        private void UpdatePathVisuals()
+        {
+            foreach (var visualizer in pathVisualizerObjects.Values)
+            {
+                if(visualizer != null) Destroy(visualizer);
+            }
+            pathVisualizerObjects.Clear();
+            foreach (var pathData in allLoadedPaths)
+            {
+                if (pathVisibility.ContainsKey(pathData.Id) && pathVisibility[pathData.Id])
+                {
+                    List<Vector3> points = pathData.Points.Select(p => p.ToVector3()).ToList();
+                    if (points.Count < 2) continue;
+                    var pathObject = new GameObject($"PathVisualizer_{pathData.Id}");
+                    var lineRenderer = pathObject.AddComponent<LineRenderer>();
+                    lineRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
+                    lineRenderer.startColor = Color.yellow;
+                    lineRenderer.endColor = Color.red;
+                    lineRenderer.startWidth = 0.2f;
+                    lineRenderer.endWidth = 0.2f;
+                    lineRenderer.positionCount = points.Count;
+                    lineRenderer.SetPositions(points.ToArray());
+                    pathVisualizerObjects[pathData.Id] = pathObject;
+                }
+            }
+        }
+        #endregion
+    }
+
+    public class PluginPatches
+    {
+        [HarmonyPatch(typeof(Campfire), "Light_Rpc")]
+        [HarmonyPrefix]
+        public static void CaptureBiomeNameBeforeCompletion()
+        {
+            if (Singleton<MapHandler>.Instance != null)
+            {
+                Segment currentSegmentEnum = Singleton<MapHandler>.Instance.GetCurrentSegment();
+                Plugin.BiomeNameOfCompletedSegment = Enum.GetName(typeof(Segment), currentSegmentEnum);
+                Debug.Log($"[PeakPathfinder] Biome erfasst: {Plugin.BiomeNameOfCompletedSegment}");
+            }
+        }
+
+        [HarmonyPatch(typeof(Campfire), "Light_Rpc")]
+        [HarmonyPostfix]
+        public static void SavePathAfterCampfireLit()
+        {
+            if(Plugin.Instance != null)
+            {
+                Debug.Log("[PeakPathfinder] Campfire.Light_Rpc() beendet. Speichern wird ausgelöst.");
+                Plugin.Instance.SavePathsToFile();
+                Plugin.Instance.StartRecording();
+            }
+        }
+    }
+}

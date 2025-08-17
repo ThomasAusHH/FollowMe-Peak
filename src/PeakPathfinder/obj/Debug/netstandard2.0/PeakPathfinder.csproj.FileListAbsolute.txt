@@ -1,0 +1,5 @@
+C:\Users\Thomas\Documents\GitHub\PeakPathfinderMod\src\PeakPathfinder\obj\Debug\netstandard2.0\PeakPathfinder.csproj.AssemblyReference.cache
+C:\Users\Thomas\Documents\GitHub\PeakPathfinderMod\src\PeakPathfinder\obj\Debug\netstandard2.0\PeakPathfinder.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Thomas\Documents\GitHub\PeakPathfinderMod\src\PeakPathfinder\obj\Debug\netstandard2.0\PeakPathfinder.AssemblyInfoInputs.cache
+C:\Users\Thomas\Documents\GitHub\PeakPathfinderMod\src\PeakPathfinder\obj\Debug\netstandard2.0\PeakPathfinder.AssemblyInfo.cs
+C:\Users\Thomas\Documents\GitHub\PeakPathfinderMod\src\PeakPathfinder\obj\Debug\netstandard2.0\PeakPathfinder.csproj.CoreCompileInputs.cache
