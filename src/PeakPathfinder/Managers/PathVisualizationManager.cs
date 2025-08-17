@@ -23,6 +23,12 @@ namespace PeakPathfinder.Managers
             return _pathVisibility.ContainsKey(pathId) && _pathVisibility[pathId];
         }
 
+        public void SetPathVisibility(Guid pathId, bool visible)
+        {
+            _pathVisibility[pathId] = visible;
+            UpdateVisuals(); // Use existing UpdateVisuals method
+        }
+
         public void TogglePathVisibility(Guid pathId)
         {
             if (_pathVisibility.ContainsKey(pathId))

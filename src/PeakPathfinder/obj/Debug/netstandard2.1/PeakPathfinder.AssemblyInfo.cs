@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("My first BepInEx plugin")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4380203ad5289961c447acf14c2d32979cabb946")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d530807eb3f9e6992179b740abbbaa3e9447467a")]
 [assembly: System.Reflection.AssemblyProductAttribute("PeakPathfinder")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PeakPathfinder")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

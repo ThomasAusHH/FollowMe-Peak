@@ -34,6 +34,9 @@
     <Reference Include="UnityEngine.AIModule">
       <HintPath>..\..\libs\UnityEngine.AIModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>..\..\libs\UnityEngine.UnityWebRequestModule.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
     <HintPath>..\..\libs\Newtonsoft.Json.dll</HintPath>
     </Reference>

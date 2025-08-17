@@ -59,8 +59,23 @@ namespace PeakPathfinder.Managers
                 Points = _currentRecordedPath.Select(vec => new SerializableVector3(vec)).ToList()
             };
             
+            // Generate share code for the new path
+            newPathData.GenerateShareCode();
+            
             _pathDataService.AddPath(newPathData);
             _pathDataService.SavePathsToFile(false);
+            
+            // Show tag selection popup for successful paths
+            ShowTagSelectionForNewPath(newPathData);
+        }
+        
+        private void ShowTagSelectionForNewPath(PathData pathData)
+        {
+            // We'll trigger this through the Plugin to show the tag selection UI
+            _logger.LogInfo($"Neuer Pfad erstellt: {pathData.GetDisplayName()} (Code: {pathData.ShareCode})");
+            
+            // Trigger tag selection in the UI
+            Plugin.Instance.ShowTagSelectionForNewPath(pathData);
         }
 
         private IEnumerator RecordPathRoutine()

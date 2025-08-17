@@ -1,0 +1,32 @@
+# Server directory - should not be published to GitHub
+server/
+
+# Build artifacts
+src/**/bin/
+src/**/obj/
+*.dll
+*.pdb
+*.deps.json
+
+# BepInEx specific
+libs/
+BepInEx/
+
+# Unity specific
+*.log
+*.tmp
+*.temp
+Temp/
+Library/
+Logs/
+
+# IDE specific
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# OS specific
+.DS_Store
+Thumbs.db
