@@ -1,0 +1,369 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UnityEngine;
+using UnityEngine.Networking;
+using BepInEx.Logging;
+using Newtonsoft.Json;
+using FollowMePeak.Models;
+
+namespace FollowMePeak.Services
+{
+    public class VPSApiService
+    {
+        private readonly ManualLogSource _logger;
+        private readonly ServerConfig _config;
+        private readonly MonoBehaviour _coroutineRunner;
+
+        public VPSApiService(ManualLogSource logger, ServerConfig config, MonoBehaviour coroutineRunner)
+        {
+            _logger = logger;
+            _config = config;
+            _coroutineRunner = coroutineRunner;
+        }
+
+        public bool IsServerReachable { get; private set; } = false;
+        public DateTime LastHealthCheck { get; private set; } = DateTime.MinValue;
+
+        // Health Check
+        public void CheckServerHealth(System.Action<bool> callback = null)
+        {
+            _coroutineRunner.StartCoroutine(CheckServerHealthCoroutine(callback));
+        }
+
+        private IEnumerator CheckServerHealthCoroutine(System.Action<bool> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/health";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                
+                yield return request.SendWebRequest();
+                
+                LastHealthCheck = DateTime.Now;
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<HealthResponse>(request.downloadHandler.text);
+                        IsServerReachable = response.Status == "healthy";
+                        
+                        if (IsServerReachable)
+                        {
+                            _logger.LogInfo($"Server health check successful. {response.Stats.TotalClimbs} climbs in database.");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Server unhealthy: {response.Status}");
+                            IsServerReachable = false;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"Failed to parse health response: {e.Message}");
+                        IsServerReachable = false;
+                    }
+                }
+                else
+                {
+                    _logger.LogError($"Health check failed: {request.error}");
+                    IsServerReachable = false;
+                }
+                
+                callback?.Invoke(IsServerReachable);
+            }
+        }
+
+        // Upload Climb
+        public void UploadClimb(ClimbData climbData, string levelId, System.Action<bool, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(false, "Cloud sync disabled");
+                return;
+            }
+
+            if (!_config.CanUpload())
+            {
+                callback?.Invoke(false, "Upload rate limit exceeded");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(UploadClimbCoroutine(climbData, levelId, callback));
+        }
+
+        private IEnumerator UploadClimbCoroutine(ClimbData climbData, string levelId, System.Action<bool, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/climbs";
+            
+            // Convert ClimbData to server format and reduce points if necessary
+            var apiPoints = climbData.Points.Select(p => p.ToApiVector3()).ToList();
+            apiPoints = ReducePointsIfNeeded(apiPoints);
+            
+            var uploadData = new
+            {
+                levelId = levelId,
+                playerName = string.IsNullOrEmpty(_config.PlayerName) ? "Anonymous" : _config.PlayerName,
+                biomeName = climbData.BiomeName,
+                duration = climbData.DurationInSeconds,
+                points = apiPoints,
+                isSuccessful = true, // Will be determined by validation logic
+                tags = new string[] { } // Can be extended later
+            };
+
+            string json = JsonConvert.SerializeObject(uploadData);
+            
+            // Check payload size before upload
+            if (json.Length > GetMaxPayloadSize())
+            {
+                string error = $"Payload too large ({json.Length} bytes). Consider reducing climb complexity.";
+                _logger.LogError(error);
+                callback?.Invoke(false, error);
+                yield break;
+            }
+            
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.timeout = _config.TimeoutSeconds;
+
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text);
+                        
+                        if (response.Success)
+                        {
+                            _config.IncrementUploadCount();
+                            _logger.LogInfo($"Climb uploaded successfully: {response.Data.ClimbId}");
+                            callback?.Invoke(true, response.Data.ClimbId);
+                        }
+                        else
+                        {
+                            _logger.LogError($"Upload failed: {response.Error}");
+                            callback?.Invoke(false, response.Error);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"Failed to parse upload response: {e.Message}");
+                        callback?.Invoke(false, "Parse error");
+                    }
+                }
+                else
+                {
+                    string error = $"Upload request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.LogError(error);
+                    callback?.Invoke(false, error);
+                }
+            }
+        }
+
+        // Download Climbs for Level
+        public void DownloadClimbs(string levelId, System.Action<List<ClimbData>, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(new List<ClimbData>(), "Cloud sync disabled");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(DownloadClimbsCoroutine(levelId, callback));
+        }
+
+        private IEnumerator DownloadClimbsCoroutine(string levelId, System.Action<List<ClimbData>, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/climbs/{levelId}?limit=200";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ClimbListResponse>(request.downloadHandler.text);
+                        var climbs = new List<ClimbData>();
+                        
+                        if (response.Data != null)
+                        {
+                            foreach (var serverClimb in response.Data)
+                            {
+                                climbs.Add(serverClimb.ToClimbData());
+                            }
+                        }
+                        
+                        _logger.LogInfo($"Downloaded {climbs.Count} climbs for level {levelId}");
+                        callback?.Invoke(climbs, null);
+                    }
+                    catch (Exception e)
+                    {
+                        string error = $"Failed to parse download response: {e.Message}";
+                        _logger.LogError(error);
+                        callback?.Invoke(new List<ClimbData>(), error);
+                    }
+                }
+                else if (request.responseCode == 404)
+                {
+                    // No climbs found for this level
+                    _logger.LogInfo($"No climbs found for level {levelId}");
+                    callback?.Invoke(new List<ClimbData>(), null);
+                }
+                else
+                {
+                    string error = $"Download request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.LogError(error);
+                    callback?.Invoke(new List<ClimbData>(), error);
+                }
+            }
+        }
+
+        // Search Climb by Peak Code
+        public void SearchClimbByPeakCode(string peakCode, System.Action<ClimbData, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(null, "Cloud sync disabled");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(peakCode) || peakCode.Length != 8)
+            {
+                callback?.Invoke(null, "Peak code must be 8 characters long");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(SearchClimbByPeakCodeCoroutine(peakCode, callback));
+        }
+
+        private IEnumerator SearchClimbByPeakCodeCoroutine(string peakCode, System.Action<ClimbData, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode.ToUpper()}";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ClimbSearchResponse>(request.downloadHandler.text);
+                        
+                        if (response.Success && response.Data != null)
+                        {
+                            var climbData = response.Data.ToClimbData();
+                            _logger.LogInfo($"Found climb with peak code {peakCode}: {climbData.GetDisplayName()}");
+                            callback?.Invoke(climbData, null);
+                        }
+                        else
+                        {
+                            _logger.LogInfo($"No climb found with peak code {peakCode}");
+                            callback?.Invoke(null, "Climb not found");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        string error = $"Failed to parse search response: {e.Message}";
+                        _logger.LogError(error);
+                        callback?.Invoke(null, error);
+                    }
+                }
+                else if (request.responseCode == 404)
+                {
+                    _logger.LogInfo($"No climb found with peak code {peakCode}");
+                    callback?.Invoke(null, "Climb not found");
+                }
+                else
+                {
+                    string error = $"Search request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.LogError(error);
+                    callback?.Invoke(null, error);
+                }
+            }
+        }
+
+        // Get Server Statistics
+        public void GetServerStats(System.Action<string, string> callback)
+        {
+            _coroutineRunner.StartCoroutine(GetServerStatsCoroutine(callback));
+        }
+
+        private IEnumerator GetServerStatsCoroutine(System.Action<string, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/stats";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    callback?.Invoke(request.downloadHandler.text, null);
+                }
+                else
+                {
+                    string error = $"Stats request failed: {request.error}";
+                    _logger.LogError(error);
+                    callback?.Invoke(null, error);
+                }
+            }
+        }
+
+        // Helper method to get maximum allowed payload size (in bytes)
+        private int GetMaxPayloadSize()
+        {
+            // Most servers have a default limit of around 1-4MB for POST requests
+            // We'll use 2MB as a safe default, but make it configurable
+            return 2 * 1024 * 1024; // 2MB
+        }
+
+        // Helper method to reduce points if path is too complex
+        private List<ApiVector3> ReducePointsIfNeeded(List<ApiVector3> points)
+        {
+            const int maxPoints = 2000; // Reasonable limit for most paths
+            
+            if (points.Count <= maxPoints)
+                return points;
+
+            _logger.LogWarning($"Path has {points.Count} points, reducing to {maxPoints} for upload");
+
+            // Use simple decimation - take every nth point to reduce complexity
+            var reducedPoints = new List<ApiVector3>();
+            float step = (float)points.Count / maxPoints;
+            
+            for (int i = 0; i < maxPoints; i++)
+            {
+                int index = Mathf.RoundToInt(i * step);
+                if (index < points.Count)
+                    reducedPoints.Add(points[index]);
+            }
+
+            // Always include the last point to maintain path integrity
+            if (reducedPoints.Count > 0 && !reducedPoints.Last().Equals(points.Last()))
+            {
+                reducedPoints[reducedPoints.Count - 1] = points.Last();
+            }
+
+            return reducedPoints;
+        }
+    }
+}
