@@ -13,7 +13,7 @@ using FollowMePeak.Patches;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.0")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "0.1.0")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
@@ -42,7 +42,7 @@ namespace FollowMePeak
             
             SceneManager.sceneLoaded += OnSceneLoaded;
             Harmony.CreateAndPatchAll(typeof(PluginPatches));
-            Logger.LogInfo("Harmony Patches wurden angewendet.");
+            Logger.LogInfo("Harmony Patches applied.");
         }
 
         private void InitializeServices()
