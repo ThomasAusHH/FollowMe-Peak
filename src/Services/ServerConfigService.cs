@@ -69,14 +69,8 @@ namespace FollowMePeak.Services
         {
             return new ServerConfig
             {
-                BaseUrl = "https://api.followmepeak.de", // Fixed server for all users
-                EnableCloudSync = false, // Disabled by default for privacy
-                AutoUpload = true,
-                AutoDownload = true,
-                TimeoutSeconds = 30,
-                RetryAttempts = 3,
+                EnableCloudSync = true, // Enabled for testing
                 PlayerName = GenerateRandomPlayerName(),
-                MaxUploadsPerHour = 999999, // Effectively unlimited
                 LastUploadReset = DateTime.Now,
                 UploadsThisHour = 0
             };
@@ -150,19 +144,7 @@ namespace FollowMePeak.Services
             _logger.LogInfo($"Player name updated to: {_config.PlayerName}");
         }
 
-        public void SetAutoUpload(bool enabled)
-        {
-            _config.AutoUpload = enabled;
-            SaveConfig();
-            _logger.LogInfo($"Auto upload {(enabled ? "enabled" : "disabled")}");
-        }
-
-        public void SetAutoDownload(bool enabled)
-        {
-            _config.AutoDownload = enabled;
-            SaveConfig();
-            _logger.LogInfo($"Auto download {(enabled ? "enabled" : "disabled")}");
-        }
+        // Auto upload/download settings are now hardcoded - methods removed
 
         // Reset upload rate limiting (for testing or admin override)
         public void ResetUploadRateLimit()
@@ -176,30 +158,8 @@ namespace FollowMePeak.Services
         // Validate configuration
         public bool ValidateConfig()
         {
-            if (string.IsNullOrWhiteSpace(_config.BaseUrl))
-            {
-                _logger.LogError("Server URL is required");
-                return false;
-            }
-
-            if (!Uri.TryCreate(_config.BaseUrl, UriKind.Absolute, out Uri uri))
-            {
-                _logger.LogError("Invalid server URL format");
-                return false;
-            }
-
-            if (_config.TimeoutSeconds < 5 || _config.TimeoutSeconds > 120)
-            {
-                _logger.LogWarning("Timeout should be between 5 and 120 seconds");
-                _config.TimeoutSeconds = Math.Max(5, Math.Min(120, _config.TimeoutSeconds));
-            }
-
-            if (_config.MaxUploadsPerHour < 1 || _config.MaxUploadsPerHour > 100)
-            {
-                _logger.LogWarning("Max uploads per hour should be between 1 and 100");
-                _config.MaxUploadsPerHour = Math.Max(1, Math.Min(100, _config.MaxUploadsPerHour));
-            }
-
+            // BaseUrl, TimeoutSeconds, MaxUploadsPerHour are now hardcoded
+            // Only validate user-configurable settings
             return true;
         }
     }

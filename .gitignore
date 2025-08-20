@@ -1,4 +1,9 @@
-# Server directory - should not be published to GitHub
+# API Keys and sensitive configuration (for mod)
+src/Config/ApiKeys.cs
+build/api-config.json
+*.api-key
+
+# Server directory - PRIVATE, not for open source
 server/
 
 # Build artifacts

@@ -16,7 +16,7 @@ namespace FollowMePeak.UI
         private readonly VPSApiService _vpsApiService;
         
         private bool _showMenu = false;
-        private Rect _menuRect = new Rect(20, 20, 600, 600);
+        private Rect _menuRect = new Rect(20, 20, 800, 600);
         private Vector2 _scrollPosition = Vector2.zero;
         
         // Cursor management
@@ -33,7 +33,7 @@ namespace FollowMePeak.UI
         
         // Tab system
         private int _selectedTab = 0;
-        private readonly string[] _tabNames = { "📂 My Climbs", "🌐 Online Share" };
+        private readonly string[] _tabNames = { "My Climbs", "Online Share" };
         
         // Tag selection system - DISABLED FOR NOW
         // private ClimbData _currentTagEditClimb = null;
@@ -129,7 +129,7 @@ namespace FollowMePeak.UI
             
             // Second row: Buttons and toggles
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("🔍 Search", GUILayout.Width(100)))
+            if (GUILayout.Button("Search", GUILayout.Width(100)))
             {
                 // Manual search trigger
                 if (!string.IsNullOrEmpty(_peakCodeSearch) && _peakCodeSearch.Length >= 4)
@@ -138,7 +138,7 @@ namespace FollowMePeak.UI
                 }
             }
             
-            if (GUILayout.Button("🗑️ Clear Filters", GUILayout.Width(120)))
+            if (GUILayout.Button("Clear Filters", GUILayout.Width(120)))
             {
                 // Clear all filters
                 _nameFilter = "";
@@ -168,7 +168,7 @@ namespace FollowMePeak.UI
             if(GUILayout.Button(GetSortLabel("Date", SortColumn.CreationTime), GUILayout.Width(80))) SetSortColumn(SortColumn.CreationTime);
             GUILayout.Label("Peak Code", GUILayout.Width(70));
             // GUILayout.Label("Tags", GUILayout.Width(80)); // DISABLED FOR NOW
-            GUILayout.Label("Actions", GUILayout.Width(80)); // Actions
+            GUILayout.Label("Actions", GUILayout.Width(120)); // Actions
             GUILayout.EndHorizontal();
 
             // Table Content
@@ -193,22 +193,6 @@ namespace FollowMePeak.UI
 
             GUILayout.EndScrollView();
             
-            // Action Buttons
-            GUILayout.Space(10);
-            GUILayout.BeginHorizontal("box");
-            if(GUILayout.Button("Show All")) _visualizationManager.ShowAllClimbs();
-            if(GUILayout.Button("Hide All")) _visualizationManager.HideAllClimbs();
-            
-            GUILayout.Space(20);
-            
-            // Quick actions for cloud saves
-            if (_climbDataService.GetAllClimbs().Any(c => c.IsFromCloud))
-            {
-                if(GUILayout.Button("Cloud Climbs Only")) ShowOnlyCloudClimbs();
-                if(GUILayout.Button("Local Climbs Only")) ShowOnlyLocalClimbs();
-            }
-            
-            GUILayout.EndHorizontal();
         }
 
         private void DrawClimbTableRow(ClimbData climbData, List<Guid> climbsToDelete)
@@ -254,9 +238,9 @@ namespace FollowMePeak.UI
             GUILayout.Label("", GUILayout.Width(80)); // Empty space where tags would be
 
             // Action Buttons
-            GUILayout.BeginHorizontal(GUILayout.Width(80));
+            GUILayout.BeginHorizontal(GUILayout.Width(120));
             
-            if (GUILayout.Button("Copy", GUILayout.Width(25)))
+            if (GUILayout.Button("Copy", GUILayout.Width(50)))
             {
                 // Copy peak code to clipboard
                 Debug.Log($"Peak code copied: {climbData.ShareCode}");
@@ -264,13 +248,13 @@ namespace FollowMePeak.UI
             }
             
             // Tag button - DISABLED FOR NOW
-            // if (GUILayout.Button("Tag", GUILayout.Width(25)))
+            // if (GUILayout.Button("Tag", GUILayout.Width(35)))
             // {
             //     // Show tag selection for this path
             //     ShowTagSelectionForClimb(climbData);
             // }
             
-            if (GUILayout.Button("Del", GUILayout.Width(25)))
+            if (GUILayout.Button("Del", GUILayout.Width(35)))
             {
                 climbsToDelete.Add(climbData.Id);
             }

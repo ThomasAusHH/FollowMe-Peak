@@ -6,6 +6,7 @@ using BepInEx;
 using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
+using FollowMePeak.Utils;
 using UnityEngine;
 
 namespace FollowMePeak.Services
@@ -40,6 +41,25 @@ namespace FollowMePeak.Services
             if (!_configService.Config.EnableCloudSync || !_configService.Config.AutoUpload)
             {
                 _logger.LogInfo("Cloud sync or auto-upload disabled, skipping upload");
+                return;
+            }
+
+            // Input validation
+            if (climbData == null)
+            {
+                _logger.LogError("Cannot queue null climb data for upload");
+                return;
+            }
+
+            if (!InputValidator.IsValidLevelId(levelId))
+            {
+                _logger.LogError($"Cannot queue climb - invalid level ID: {levelId}");
+                return;
+            }
+
+            if (!InputValidator.IsValidPointCount(climbData.Points?.Count ?? 0))
+            {
+                _logger.LogError($"Cannot queue climb - invalid point count: {climbData.Points?.Count ?? 0}");
                 return;
             }
 
@@ -113,6 +133,14 @@ namespace FollowMePeak.Services
             }
 
             var item = items[index];
+            
+            // Skip items with invalid data
+            if (item == null || item.ClimbData == null)
+            {
+                _logger.LogWarning($"Skipping invalid upload queue item at index {index}");
+                ProcessNextItem(items, index + 1);
+                return;
+            }
             
             // Check rate limiting
             if (!_configService.Config.CanUpload())
@@ -269,6 +297,9 @@ namespace FollowMePeak.Services
                 {
                     string json = File.ReadAllText(_queueFilePath);
                     _uploadQueue = JsonConvert.DeserializeObject<List<UploadQueueItem>>(json) ?? new List<UploadQueueItem>();
+                    
+                    // Remove any items with null ClimbData (from old PathData format)
+                    _uploadQueue.RemoveAll(item => item.ClimbData == null);
                     
                     // Reset any items that were in uploading state (crashed during upload)
                     foreach (var item in _uploadQueue.Where(x => x.Status == UploadStatus.Uploading))

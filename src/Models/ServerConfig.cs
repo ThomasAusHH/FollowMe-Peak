@@ -1,19 +1,34 @@
 using System;
+using Newtonsoft.Json;
+using FollowMePeak.Config;
 
 namespace FollowMePeak.Models
 {
     public class ServerConfig
     {
-        public string BaseUrl { get; set; } = "http://localhost:3000";
+        // Hardcoded server settings - not configurable by user
+        [JsonIgnore]
+        public string BaseUrl => "http://localhost:3000";
+        [JsonIgnore]
+        public bool AutoUpload => true;
+        [JsonIgnore]
+        public bool AutoDownload => true;
+        [JsonIgnore]
+        public int TimeoutSeconds => 30;
+        [JsonIgnore]
+        public int RetryAttempts => 3;
+        [JsonIgnore]
+        public int MaxUploadsPerHour => 50;
+        
+        // API authentication - injected during build process - NEVER serialize this!
+        [JsonIgnore]
+        public string ApiKey => Config.ApiKeys.ServerApiKey;
+        
+        // User-configurable settings
         public bool EnableCloudSync { get; set; } = false;
-        public bool AutoUpload { get; set; } = true;
-        public bool AutoDownload { get; set; } = true;
-        public int TimeoutSeconds { get; set; } = 30;
-        public int RetryAttempts { get; set; } = 3;
         public string PlayerName { get; set; } = "Anonymous";
         
-        // Rate limiting
-        public int MaxUploadsPerHour { get; set; } = 10;
+        // Rate limiting tracking
         public DateTime LastUploadReset { get; set; } = DateTime.MinValue;
         public int UploadsThisHour { get; set; } = 0;
         

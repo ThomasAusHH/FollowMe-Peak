@@ -87,8 +87,21 @@ namespace FollowMePeak.Managers
             var climbObject = new GameObject($"ClimbVisualizer_{climbData.Id}");
             var lineRenderer = climbObject.AddComponent<LineRenderer>();
             lineRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
-            lineRenderer.startColor = Color.yellow;
-            lineRenderer.endColor = Color.red;
+            
+            // Set colors based on route source
+            if (climbData.IsFromCloud)
+            {
+                // Cloud routes: blue
+                lineRenderer.startColor = Color.blue;
+                lineRenderer.endColor = Color.cyan;
+            }
+            else
+            {
+                // Local routes: red
+                lineRenderer.startColor = Color.red;
+                lineRenderer.endColor = new Color(1f, 0.5f, 0f); // Red to orange
+            }
+            
             lineRenderer.startWidth = 0.2f;
             lineRenderer.endWidth = 0.2f;
             lineRenderer.positionCount = points.Count;

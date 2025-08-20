@@ -1,0 +1,21 @@
+using System;
+
+namespace FollowMePeak.Config
+{
+    /// <summary>
+    /// API Keys configuration - This file should be created from the template during build
+    /// </summary>
+    internal static class ApiKeys
+    {
+        /// <summary>
+        /// API Key for server authentication
+        /// This will be injected during build process from environment variable or build script
+        /// </summary>
+        public const string ServerApiKey = "{{API_KEY_PLACEHOLDER}}";
+        
+        /// <summary>
+        /// Validates that the API key has been properly injected during build
+        /// </summary>
+        public static bool IsConfigured => !ServerApiKey.Contains("PLACEHOLDER");
+    }
+}

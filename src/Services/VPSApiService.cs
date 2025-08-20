@@ -8,6 +8,7 @@ using UnityEngine.Networking;
 using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Services
 {
@@ -40,6 +41,7 @@ namespace FollowMePeak.Services
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
                 
                 yield return request.SendWebRequest();
                 
@@ -98,6 +100,19 @@ namespace FollowMePeak.Services
 
         private IEnumerator UploadClimbCoroutine(ClimbData climbData, string levelId, System.Action<bool, string> callback)
         {
+            // Input validation
+            if (!InputValidator.IsValidLevelId(levelId))
+            {
+                callback?.Invoke(false, "Invalid level ID format");
+                yield break;
+            }
+            
+            if (!InputValidator.IsValidPointCount(climbData.Points?.Count ?? 0))
+            {
+                callback?.Invoke(false, "Invalid climb data - point count out of range");
+                yield break;
+            }
+            
             string url = $"{_config.BaseUrl}/api/climbs";
             
             // Convert ClimbData to server format and reduce points if necessary
@@ -107,9 +122,9 @@ namespace FollowMePeak.Services
             var uploadData = new
             {
                 levelId = levelId,
-                playerName = string.IsNullOrEmpty(_config.PlayerName) ? "Anonymous" : _config.PlayerName,
-                biomeName = climbData.BiomeName,
-                duration = climbData.DurationInSeconds,
+                playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
                 points = apiPoints,
                 isSuccessful = true, // Will be determined by validation logic
                 tags = new string[] { } // Can be extended later
@@ -133,6 +148,7 @@ namespace FollowMePeak.Services
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
                 request.timeout = _config.TimeoutSeconds;
 
                 yield return request.SendWebRequest();
@@ -184,11 +200,19 @@ namespace FollowMePeak.Services
 
         private IEnumerator DownloadClimbsCoroutine(string levelId, System.Action<List<ClimbData>, string> callback)
         {
+            // Input validation
+            if (!InputValidator.IsValidLevelId(levelId))
+            {
+                callback?.Invoke(new List<ClimbData>(), "Invalid level ID format");
+                yield break;
+            }
+            
             string url = $"{_config.BaseUrl}/api/climbs/{levelId}?limit=200";
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
                 
                 yield return request.SendWebRequest();
                 
@@ -241,22 +265,25 @@ namespace FollowMePeak.Services
                 return;
             }
 
-            if (string.IsNullOrEmpty(peakCode) || peakCode.Length != 8)
+            // Sanitize and validate peak code
+            string sanitizedPeakCode = InputValidator.SanitizePeakCode(peakCode);
+            if (!InputValidator.IsValidPeakCode(sanitizedPeakCode))
             {
-                callback?.Invoke(null, "Peak code must be 8 characters long");
+                callback?.Invoke(null, "Peak code must be 8 alphanumeric characters");
                 return;
             }
 
-            _coroutineRunner.StartCoroutine(SearchClimbByPeakCodeCoroutine(peakCode, callback));
+            _coroutineRunner.StartCoroutine(SearchClimbByPeakCodeCoroutine(sanitizedPeakCode, callback));
         }
 
         private IEnumerator SearchClimbByPeakCodeCoroutine(string peakCode, System.Action<ClimbData, string> callback)
         {
-            string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode.ToUpper()}";
+            string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode}";
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
                 
                 yield return request.SendWebRequest();
                 
@@ -312,6 +339,7 @@ namespace FollowMePeak.Services
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
                 
                 yield return request.SendWebRequest();
                 

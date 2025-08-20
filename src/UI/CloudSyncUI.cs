@@ -32,7 +32,7 @@ namespace FollowMePeak.UI
             GUILayout.BeginVertical("box");
             
             // Simple header
-            GUILayout.Label("Share Paths Online", GUI.skin.label);
+            GUILayout.Label("Share Climbs Online", GUI.skin.label);
             GUILayout.Space(5);
             
             // Main Cloud Sync Toggle - BIG and prominent
@@ -44,12 +44,7 @@ namespace FollowMePeak.UI
             {
                 _configService.SetCloudSyncEnabled(enableCloudSync);
                 
-                // Automatically enable upload and download when cloud sync is enabled
-                if (enableCloudSync)
-                {
-                    _configService.SetAutoUpload(true);
-                    _configService.SetAutoDownload(true);
-                }
+                // Auto upload/download are now hardcoded as true - no need to set them
             }
 
             GUILayout.Space(10);
@@ -107,7 +102,7 @@ namespace FollowMePeak.UI
             
             // Connection status
             GUILayout.BeginHorizontal();
-            string statusText = _apiService.IsServerReachable ? "🟢 Connected" : "🔴 Offline";
+            string statusText = _apiService.IsServerReachable ? "● Connected" : "● Offline";
             GUILayout.Label($"Status: {statusText}");
             
             if (GUILayout.Button("Test Connection", GUILayout.Width(120)))
@@ -131,7 +126,7 @@ namespace FollowMePeak.UI
                 _uploadService.ProcessQueue();
             }
             
-            if (GUILayout.Button("Load New Paths"))
+            if (GUILayout.Button("Load New Climbs"))
             {
                 var currentLevelId = Plugin.Instance.ClimbDataService.CurrentLevelID;
                 if (!string.IsNullOrEmpty(currentLevelId))
