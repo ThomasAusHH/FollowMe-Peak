@@ -5,6 +5,8 @@ build/api-config.json
 
 # Server directory - PRIVATE, not for open source
 server/
+deployment/
+thunderstore-package
 
 # Build artifacts
 src/**/bin/

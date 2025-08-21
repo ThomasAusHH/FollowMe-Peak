@@ -9,6 +9,14 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DefineConstants>$(DefineConstants);DEVELOPMENT</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)'=='Local'">
+    <DefineConstants>$(DefineConstants);DEVELOPMENT;LOCAL_SERVER</DefineConstants>
+  </PropertyGroup>
+
     <ItemGroup>
     <Reference Include="BepInEx">
       <HintPath>..\libs\BepInEx.dll</HintPath>

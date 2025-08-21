@@ -29,19 +29,19 @@ namespace FollowMePeak.Services
         public DateTime LastDownload => _lastDownload;
 
         // Download and merge climbs for current level
-        public void DownloadAndMergeClimbs(string levelId, System.Action<int, string> callback = null)
+        public void DownloadAndMergeClimbs(string levelId, System.Action<int, string, ClimbListMeta> callback = null, int limit = 10, int offset = 0)
         {
             if (!_configService.Config.EnableCloudSync || !_configService.Config.AutoDownload)
             {
                 _logger.LogInfo("Cloud sync or auto-download disabled, skipping download");
-                callback?.Invoke(0, "Cloud sync disabled");
+                callback?.Invoke(0, "Cloud sync disabled", null);
                 return;
             }
 
             if (IsDownloading)
             {
                 _logger.LogInfo("Download already in progress");
-                callback?.Invoke(0, "Download in progress");
+                callback?.Invoke(0, "Download in progress", null);
                 return;
             }
 
@@ -52,7 +52,7 @@ namespace FollowMePeak.Services
                 if (timeSinceLastDownload < TimeSpan.FromMinutes(5))
                 {
                     _logger.LogInfo($"Downloaded {levelId} recently, skipping");
-                    callback?.Invoke(0, "Downloaded recently");
+                    callback?.Invoke(0, "Downloaded recently", null);
                     return;
                 }
             }
@@ -60,7 +60,7 @@ namespace FollowMePeak.Services
             IsDownloading = true;
             _logger.LogInfo($"Starting download for level: {levelId}");
 
-            _apiService.DownloadClimbs(levelId, (downloadedClimbs, error) =>
+            _apiService.DownloadClimbs(levelId, (downloadedClimbs, error, meta) =>
             {
                 IsDownloading = false;
                 _lastDownload = DateTime.Now;
@@ -69,7 +69,7 @@ namespace FollowMePeak.Services
                 if (error != null)
                 {
                     _logger.LogError($"Download failed for level {levelId}: {error}");
-                    callback?.Invoke(0, error);
+                    callback?.Invoke(0, error, null);
                     return;
                 }
 
@@ -77,14 +77,14 @@ namespace FollowMePeak.Services
                 {
                     int mergedCount = MergeDownloadedClimbs(downloadedClimbs, levelId);
                     _logger.LogInfo($"Downloaded and merged {mergedCount} new climbs for level {levelId}");
-                    callback?.Invoke(mergedCount, null);
+                    callback?.Invoke(mergedCount, null, meta);
                 }
                 catch (Exception e)
                 {
                     _logger.LogError($"Failed to merge downloaded climbs: {e.Message}");
-                    callback?.Invoke(0, e.Message);
+                    callback?.Invoke(0, e.Message, null);
                 }
-            });
+            }, limit, offset);
         }
 
         // Merge downloaded climbs with local climbs
@@ -167,17 +167,17 @@ namespace FollowMePeak.Services
         }
 
         // Download recent climbs from all levels
-        public void DownloadRecentClimbs(System.Action<int, string> callback = null)
+        public void DownloadRecentClimbs(System.Action<int, string, ClimbListMeta> callback = null)
         {
             if (!_configService.Config.EnableCloudSync)
             {
-                callback?.Invoke(0, "Cloud sync disabled");
+                callback?.Invoke(0, "Cloud sync disabled", null);
                 return;
             }
 
             if (IsDownloading)
             {
-                callback?.Invoke(0, "Download in progress");
+                callback?.Invoke(0, "Download in progress", null);
                 return;
             }
 
@@ -185,7 +185,7 @@ namespace FollowMePeak.Services
             _logger.LogInfo("Downloading recent climbs from all levels");
 
             // Use the recent climbs endpoint
-            _apiService.DownloadClimbs("recent", (recentClimbs, error) =>
+            _apiService.DownloadClimbs("recent", (recentClimbs, error, meta) =>
             {
                 IsDownloading = false;
                 _lastDownload = DateTime.Now;
@@ -193,7 +193,7 @@ namespace FollowMePeak.Services
                 if (error != null)
                 {
                     _logger.LogError($"Failed to download recent climbs: {error}");
-                    callback?.Invoke(0, error);
+                    callback?.Invoke(0, error, null);
                     return;
                 }
 
@@ -201,12 +201,12 @@ namespace FollowMePeak.Services
                 {
                     int mergedCount = MergeDownloadedClimbs(recentClimbs, "all_levels");
                     _logger.LogInfo($"Downloaded and merged {mergedCount} recent climbs");
-                    callback?.Invoke(mergedCount, null);
+                    callback?.Invoke(mergedCount, null, meta);
                 }
                 catch (Exception e)
                 {
                     _logger.LogError($"Failed to merge recent climbs: {e.Message}");
-                    callback?.Invoke(0, e.Message);
+                    callback?.Invoke(0, e.Message, null);
                 }
             });
         }
@@ -225,13 +225,13 @@ namespace FollowMePeak.Services
                     return; // Don't check too frequently
             }
 
-            DownloadAndMergeClimbs(levelId, (count, error) =>
+            DownloadAndMergeClimbs(levelId, (count, error, meta) =>
             {
                 if (error == null && count > 0)
                 {
                     _logger.LogInfo($"Auto-update found {count} new climbs for {levelId}");
                 }
-            });
+            }, 10, 0);
         }
 
         // Get download statistics

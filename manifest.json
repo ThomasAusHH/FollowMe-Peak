@@ -1,0 +1,9 @@
+{
+    "name": "FollowMe_Peak",
+    "version_number": "0.1.0",
+    "website_url": "https://github.com/username/FollowMe-Peak",
+    "description": "Ein BepInEx-Plugin für Content Warning, das automatisch Pfade in Levels aufzeichnet und als visuelle Hilfe für andere Spieler anzeigt.",
+    "dependencies": [
+        "BepInEx-BepInExPack-5.4.2100"
+    ]
+}

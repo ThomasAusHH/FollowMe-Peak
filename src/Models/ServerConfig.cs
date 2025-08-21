@@ -6,9 +6,9 @@ namespace FollowMePeak.Models
 {
     public class ServerConfig
     {
-        // Hardcoded server settings - not configurable by user
+        // Server settings - configurable by build configuration
         [JsonIgnore]
-        public string BaseUrl => "http://localhost:3000";
+        public string BaseUrl => GetBaseUrl();
         [JsonIgnore]
         public bool AutoUpload => true;
         [JsonIgnore]
@@ -47,6 +47,17 @@ namespace FollowMePeak.Models
         public void IncrementUploadCount()
         {
             UploadsThisHour++;
+        }
+        
+        private string GetBaseUrl()
+        {
+#if LOCAL_SERVER
+            return "http://localhost:3000";
+#elif DEVELOPMENT
+            return "https://followme-peak.ddns.net";
+#else
+            return "https://followme-peak.ddns.net";
+#endif
         }
     }
 }

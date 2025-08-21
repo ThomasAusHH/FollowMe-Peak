@@ -114,22 +114,11 @@ namespace FollowMePeak
                 // Load local paths first
                 _climbDataService.LoadClimbsFromFile();
                 
-                // Download and merge cloud climbs if enabled
+                // For server-side pagination, we don't pre-load data at startup
+                // The UI will load data on-demand per page
                 if (_serverConfigService.Config.EnableCloudSync && _serverConfigService.Config.AutoDownload)
                 {
-                    _climbDownloadService.DownloadAndMergeClimbs(_climbDataService.CurrentLevelID, (count, error) =>
-                    {
-                        if (error == null && count > 0)
-                        {
-                            Logger.LogInfo($"Downloaded {count} new climbs from cloud for level {_climbDataService.CurrentLevelID}");
-                            // Refresh visualization after download
-                            _visualizationManager.InitializeClimbVisibility();
-                        }
-                        else if (error != null && error != "Cloud sync disabled")
-                        {
-                            Logger.LogWarning($"Cloud download failed: {error}");
-                        }
-                    });
+                    Logger.LogInfo("Server-side pagination enabled - data will be loaded per page in UI");
                 }
                 
                 _visualizationManager.InitializeClimbVisibility();

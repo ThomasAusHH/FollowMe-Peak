@@ -7,37 +7,56 @@ Ein BepInEx-Plugin für Content Warning, das automatisch Pfade in Levels aufzeic
 - **Automatische Pfadaufzeichnung**: Zeichnet deine Bewegungen in jedem Level automatisch auf
 - **Visuelle Pfadanzeige**: Zeigt aufgezeichnete Pfade als sichtbare Linien im Spiel an
 - **Biom-spezifische Pfade**: Speichert Pfade getrennt nach Biomen/Level-Bereichen
+- **Cloud-Synchronisation**: Teile deine Pfade mit anderen Spielern über einen optionalen Server
 - **Einfache Bedienung**: F1-Taste öffnet das Einstellungsmenü
 - **Persistente Speicherung**: Pfade werden zwischen Spielsitzungen gespeichert
 
 ## Installation
 
-1. Stelle sicher, dass [BepInEx](https://github.com/BepInEx/BepInEx) installiert ist
-2. Lade die neueste Version von FollowMe-Peak herunter
-3. Extrahiere das Plugin in den `BepInEx/plugins` Ordner deines Content Warning-Verzeichnisses
-4. Starte das Spiel
+1. Installiere [BepInEx](https://thunderstore.io/c/content-warning/p/BepInEx/BepInExPack/) über den Mod Manager
+2. Installiere FollowMe-Peak über deinen Mod Manager
+3. Starte das Spiel
 
 ## Verwendung
 
 - Das Plugin startet automatisch die Pfadaufzeichnung, wenn ein Level geladen wird
 - Drücke **F1**, um das Einstellungsmenü zu öffnen/schließen
-- Im Menü kannst du die Sichtbarkeit der Pfade ein-/ausschalten
+- Im Menü kannst du:
+  - Die Sichtbarkeit der Pfade ein-/ausschalten
+  - Cloud-Synchronisation konfigurieren
+  - Pfade verwalten und löschen
 - Pfade werden automatisch gespeichert, wenn du ein Lagerfeuer anzündest
 
-## Technische Details
+## Cloud-Synchronisation (Optional)
 
-- **Framework**: .NET Standard 2.1
-- **Abhängigkeiten**: BepInEx, Harmony, Unity Engine
-- **Kompatibilität**: Content Warning
+Das Plugin unterstützt einen optionalen Server für das Teilen von Pfaden:
+- Lade Pfade hoch, um sie mit anderen zu teilen
+- Lade Pfade von anderen Spielern herunter
+- Automatische Synchronisation beim Level-Start
 
-## Entwicklung
+Server-Setup ist optional und das Plugin funktioniert vollständig offline.
 
-Das Projekt ist in C# geschrieben und nutzt:
-- BepInEx für Plugin-Integration
-- Harmony für Code-Patching
-- Unity Engine für 3D-Visualisierung
-- Newtonsoft.Json für Datenspeicherung
+## Kompatibilität
 
-## Lizenz
+- **Spiel**: Content Warning
+- **Framework**: BepInEx 5.4.21+
+- **Plattform**: Windows/Steam
 
-Dieses Projekt steht unter der MIT-Lizenz.
+## Problembehebung
+
+Falls das Plugin nicht funktioniert:
+1. Stelle sicher, dass BepInEx korrekt installiert ist
+2. Überprüfe die BepInEx-Logs in `BepInEx/LogOutput.log`
+3. Starte das Spiel neu nach der Installation
+
+## Changelog
+
+### v0.1.0
+- Initiale Veröffentlichung
+- Grundlegende Pfadaufzeichnung und -visualisierung
+- Cloud-Synchronisation
+- Benutzeroberfläche mit F1
+
+## Support
+
+Bei Problemen oder Fragen erstelle ein Issue im [GitHub Repository](https://github.com/username/FollowMe-Peak).

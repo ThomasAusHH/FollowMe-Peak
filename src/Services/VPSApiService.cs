@@ -187,27 +187,43 @@ namespace FollowMePeak.Services
         }
 
         // Download Climbs for Level
-        public void DownloadClimbs(string levelId, System.Action<List<ClimbData>, string> callback)
+        public void DownloadClimbs(string levelId, System.Action<List<ClimbData>, string, ClimbListMeta> callback, int limit = 10, int offset = 0, 
+            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc")
         {
             if (!_config.EnableCloudSync)
             {
-                callback?.Invoke(new List<ClimbData>(), "Cloud sync disabled");
+                callback?.Invoke(new List<ClimbData>(), "Cloud sync disabled", null);
                 return;
             }
 
-            _coroutineRunner.StartCoroutine(DownloadClimbsCoroutine(levelId, callback));
+            _coroutineRunner.StartCoroutine(DownloadClimbsCoroutine(levelId, callback, limit, offset, playerName, biomeName, peakCode, sortBy, sortOrder));
         }
 
-        private IEnumerator DownloadClimbsCoroutine(string levelId, System.Action<List<ClimbData>, string> callback)
+        private IEnumerator DownloadClimbsCoroutine(string levelId, System.Action<List<ClimbData>, string, ClimbListMeta> callback, int limit = 10, int offset = 0,
+            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc")
         {
             // Input validation
             if (!InputValidator.IsValidLevelId(levelId))
             {
-                callback?.Invoke(new List<ClimbData>(), "Invalid level ID format");
+                callback?.Invoke(new List<ClimbData>(), "Invalid level ID format", null);
                 yield break;
             }
             
-            string url = $"{_config.BaseUrl}/api/climbs/{levelId}?limit=200";
+            // Build URL with search and sort parameters
+            var urlBuilder = new StringBuilder($"{_config.BaseUrl}/api/climbs/{levelId}?limit={limit}&offset={offset}");
+            
+            if (!string.IsNullOrEmpty(playerName))
+                urlBuilder.Append($"&player_name={UnityEngine.Networking.UnityWebRequest.EscapeURL(playerName)}");
+            
+            if (!string.IsNullOrEmpty(biomeName))
+                urlBuilder.Append($"&biome_name={UnityEngine.Networking.UnityWebRequest.EscapeURL(biomeName)}");
+            
+            if (!string.IsNullOrEmpty(peakCode))
+                urlBuilder.Append($"&peak_code={UnityEngine.Networking.UnityWebRequest.EscapeURL(peakCode)}");
+            
+            urlBuilder.Append($"&sort_by={sortBy}&sort_order={sortOrder}");
+            
+            string url = urlBuilder.ToString();
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
@@ -232,26 +248,26 @@ namespace FollowMePeak.Services
                         }
                         
                         _logger.LogInfo($"Downloaded {climbs.Count} climbs for level {levelId}");
-                        callback?.Invoke(climbs, null);
+                        callback?.Invoke(climbs, null, response.Meta);
                     }
                     catch (Exception e)
                     {
                         string error = $"Failed to parse download response: {e.Message}";
                         _logger.LogError(error);
-                        callback?.Invoke(new List<ClimbData>(), error);
+                        callback?.Invoke(new List<ClimbData>(), error, null);
                     }
                 }
                 else if (request.responseCode == 404)
                 {
                     // No climbs found for this level
                     _logger.LogInfo($"No climbs found for level {levelId}");
-                    callback?.Invoke(new List<ClimbData>(), null);
+                    callback?.Invoke(new List<ClimbData>(), null, null);
                 }
                 else
                 {
                     string error = $"Download request failed: {request.error} (HTTP {request.responseCode})";
                     _logger.LogError(error);
-                    callback?.Invoke(new List<ClimbData>(), error);
+                    callback?.Invoke(new List<ClimbData>(), error, null);
                 }
             }
         }

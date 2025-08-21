@@ -3,6 +3,12 @@ using FollowMePeak.Services;
 
 namespace FollowMePeak.UI
 {
+    /// <summary>
+    /// Simplified Cloud Sync UI - Manual buttons removed since:
+    /// - Uploads are handled automatically by background queue
+    /// - Downloads are handled by pagination system in main UI
+    /// - Download status moved to pagination controls
+    /// </summary>
     public class CloudSyncUI
     {
         private readonly ServerConfigService _configService;
@@ -111,30 +117,6 @@ namespace FollowMePeak.UI
             }
             GUILayout.EndHorizontal();
             
-            GUILayout.Space(5);
-            
-            // Upload/Download stats
-            GUILayout.Label($"Upload Status: {_uploadService.GetQueueStatus()}");
-            GUILayout.Label($"Download Status: {_downloadService.GetDownloadStats()}");
-            
-            GUILayout.Space(5);
-            
-            // Manual action buttons
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Upload Now"))
-            {
-                _uploadService.ProcessQueue();
-            }
-            
-            if (GUILayout.Button("Load New Climbs"))
-            {
-                var currentLevelId = Plugin.Instance.ClimbDataService.CurrentLevelID;
-                if (!string.IsNullOrEmpty(currentLevelId))
-                {
-                    _downloadService.DownloadAndMergeClimbs(currentLevelId);
-                }
-            }
-            GUILayout.EndHorizontal();
             
             GUILayout.EndVertical();
         }
