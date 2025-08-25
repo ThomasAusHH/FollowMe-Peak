@@ -81,8 +81,9 @@ namespace FollowMePeak.Managers
         {
             while (IsRecording)
             {
-                if (Camera.main != null) 
-                    _currentRecordedClimb.Add(Camera.main.transform.position);
+                var camera = Camera.main;
+                if (camera != null)
+                    _currentRecordedClimb.Add(camera.transform.position);
                 yield return new WaitForSeconds(2.0f);
             }
         }
