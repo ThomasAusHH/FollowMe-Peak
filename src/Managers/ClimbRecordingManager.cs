@@ -81,6 +81,7 @@ namespace FollowMePeak.Managers
         {
             while (IsRecording)
             {
+                // TODO: Is this still valid even if the player is in third-person view?
                 var camera = Camera.main;
                 if (camera != null)
                     _currentRecordedClimb.Add(camera.transform.position);
