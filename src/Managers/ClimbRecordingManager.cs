@@ -31,7 +31,7 @@ namespace FollowMePeak.Managers
         {
             if (IsRecording) return;
             IsRecording = true;
-            _currentRecordedClimb.Clear();
+            _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
             _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
             _coroutineRunner.StartCoroutine(RecordClimbRoutine());
@@ -47,25 +47,43 @@ namespace FollowMePeak.Managers
         public void SaveCurrentClimb(string biomeName)
         {
             StopRecording();
-            if (_currentRecordedClimb.Count < 2) return;
-            
-            var newClimbData = new ClimbData
+
+            var currentClimb = _currentRecordedClimb;
+            if (currentClimb.Count < 2) return;
+
+            // Reset the current recorded climb
+            // (but don't clear the list, we need that list to save it; instead assign a new empty list)
+            _currentRecordedClimb = [];
+
+            var durationInSeconds = Time.time - _recordingStartTime;
+
+            BepInEx.ThreadingHelper.Instance.StartAsyncInvoke(CreateClimbData);
+            return;
+
+            Action CreateClimbData()
             {
-                Id = Guid.NewGuid(),
-                CreationTime = DateTime.Now,
-                BiomeName = biomeName ?? "Unbekannt",
-                DurationInSeconds = Time.time - _recordingStartTime,
-                Points = _currentRecordedClimb.Select(vec => new SerializableVector3(vec)).ToList()
-            };
+                var newClimbData = new ClimbData
+                {
+                    Id = Guid.NewGuid(),
+                    CreationTime = DateTime.Now,
+                    BiomeName = biomeName ?? "Unbekannt",
+                    DurationInSeconds = durationInSeconds,
+                    Points = currentClimb.Select(vec => new SerializableVector3(vec)).ToList(),
+                };
+
+                // Generate share code for the new climb
+                newClimbData.GenerateShareCode();
+                return () => AfterClimbIsCreated(newClimbData);
+            }
+
+            void AfterClimbIsCreated(ClimbData newClimbData)
+            {
+                _climbDataService.AddClimb(newClimbData);
+                _climbDataService.SaveClimbsToFile(false);
             
-            // Generate share code for the new climb
-            newClimbData.GenerateShareCode();
-            
-            _climbDataService.AddClimb(newClimbData);
-            _climbDataService.SaveClimbsToFile(false);
-            
-            // Show tag selection popup for successful climbs
-            ShowTagSelectionForNewClimb(newClimbData);
+                // Show tag selection popup for successful climbs
+                ShowTagSelectionForNewClimb(newClimbData);
+            }
         }
         
         private void ShowTagSelectionForNewClimb(ClimbData climbData)
