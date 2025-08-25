@@ -5,6 +5,11 @@ namespace FollowMePeak.Utils
 {
     public static class InputValidator
     {
+        private static readonly Regex LevelIdPattern = new(@"^[a-zA-Z0-9_\-\.]{1,100}$");
+        private static readonly Regex SpecialCharacterPattern = new(@"[^a-zA-Z0-9_\-\s]");
+        private static readonly Regex ValidPeakCodePattern = new(@"^[A-Z0-9]{8}$");
+        private static readonly Regex InvalidPeakCodeCharacters = new(@"[^A-Z0-9]");
+
         // Sanitize player name to prevent SQL injection and XSS
         public static string SanitizePlayerName(string input)
         {
@@ -12,8 +17,8 @@ namespace FollowMePeak.Utils
                 return "Anonymous";
             
             // Remove dangerous characters, keep only alphanumeric, underscore, dash, space
-            string sanitized = Regex.Replace(input, @"[^a-zA-Z0-9_\-\s]", "");
-            
+            string sanitized = SpecialCharacterPattern.Replace(input, "");
+
             // Limit length
             if (sanitized.Length > 50)
                 sanitized = sanitized.Substring(0, 50);
@@ -29,8 +34,8 @@ namespace FollowMePeak.Utils
                 return "Unknown";
             
             // Keep only safe characters
-            string sanitized = Regex.Replace(input, @"[^a-zA-Z0-9_\-\s]", "");
-            
+            string sanitized = SpecialCharacterPattern.Replace(input, "");
+
             // Limit length
             if (sanitized.Length > 100)
                 sanitized = sanitized.Substring(0, 100);
@@ -45,7 +50,7 @@ namespace FollowMePeak.Utils
                 return false;
             
             // Level IDs should be alphanumeric with some allowed special characters
-            return Regex.IsMatch(levelId, @"^[a-zA-Z0-9_\-\.]{1,100}$");
+            return LevelIdPattern.IsMatch(levelId);
         }
         
         // Validate peak code format (8 characters, alphanumeric)
@@ -53,8 +58,8 @@ namespace FollowMePeak.Utils
         {
             if (string.IsNullOrWhiteSpace(peakCode))
                 return false;
-            
-            return Regex.IsMatch(peakCode, @"^[A-Z0-9]{8}$");
+
+            return ValidPeakCodePattern.IsMatch(peakCode);
         }
         
         // Sanitize peak code
@@ -64,8 +69,8 @@ namespace FollowMePeak.Utils
                 return "";
             
             // Remove non-alphanumeric, convert to uppercase, limit to 8 chars
-            string sanitized = Regex.Replace(input.ToUpper(), @"[^A-Z0-9]", "");
-            
+            string sanitized = InvalidPeakCodeCharacters.Replace(input.ToUpper(), "");
+
             return sanitized.Length == 8 ? sanitized : "";
         }
         
