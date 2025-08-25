@@ -15,9 +15,10 @@ namespace FollowMePeak.Managers
         private readonly ManualLogSource _logger;
         
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
-        private bool _isRecording = false;
         private float _recordingStartTime;
         private MonoBehaviour _coroutineRunner;
+
+        public bool IsRecording { get; private set; } = false;
 
         public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
         {
@@ -26,12 +27,10 @@ namespace FollowMePeak.Managers
             _coroutineRunner = coroutineRunner;
         }
 
-        public bool IsRecording => _isRecording;
-
         public void StartRecording()
         {
-            if (_isRecording) return;
-            _isRecording = true;
+            if (IsRecording) return;
+            IsRecording = true;
             _currentRecordedClimb.Clear();
             _recordingStartTime = Time.time;
             _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
@@ -40,8 +39,8 @@ namespace FollowMePeak.Managers
 
         public void StopRecording()
         {
-            if (!_isRecording) return;
-            _isRecording = false;
+            if (!IsRecording) return;
+            IsRecording = false;
             _logger.LogInfo($"Aufzeichnung gestoppt. {_currentRecordedClimb.Count} Punkte zwischengespeichert.");
         }
 
@@ -80,7 +79,7 @@ namespace FollowMePeak.Managers
 
         private IEnumerator RecordClimbRoutine()
         {
-            while (_isRecording)
+            while (IsRecording)
             {
                 if (Camera.main != null) 
                     _currentRecordedClimb.Add(Camera.main.transform.position);
