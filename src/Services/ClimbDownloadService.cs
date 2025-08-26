@@ -149,10 +149,10 @@ namespace FollowMePeak.Services
                 if (newClimb.Points.Count < 2 || existingClimb.Points.Count < 2)
                     continue;
 
-                var newStart = newClimb.Points.First().ToVector3();
-                var newEnd = newClimb.Points.Last().ToVector3();
-                var existingStart = existingClimb.Points.First().ToVector3();
-                var existingEnd = existingClimb.Points.Last().ToVector3();
+                var newStart = newClimb.Points.First();
+                var newEnd = newClimb.Points.Last();
+                var existingStart = existingClimb.Points.First();
+                var existingEnd = existingClimb.Points.Last();
 
                 float startDistance = UnityEngine.Vector3.Distance(newStart, existingStart);
                 float endDistance = UnityEngine.Vector3.Distance(newEnd, existingEnd);

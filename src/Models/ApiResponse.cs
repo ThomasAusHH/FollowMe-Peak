@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using UnityEngine;
 
 namespace FollowMePeak.Models
 {
@@ -50,7 +50,7 @@ namespace FollowMePeak.Models
         public string Player_Name { get; set; }
         public string Biome_Name { get; set; }
         public float Duration { get; set; }
-        public List<ApiVector3> Points { get; set; }
+        public List<Vector3> Points { get; set; }
         public bool Is_Successful { get; set; }
         // public List<string> Tags { get; set; }
         public string Share_Code { get; set; }
@@ -60,15 +60,13 @@ namespace FollowMePeak.Models
         // Convert to local ClimbData format
         public ClimbData ToClimbData()
         {
-            var localPoints = Points?.Select(p => p.ToSerializableVector3()).ToList() ?? new List<SerializableVector3>();
-            
             var climbData = new ClimbData
             {
                 Id = Guid.Parse(Id),
                 CreationTime = DateTime.Parse(Created_At),
                 BiomeName = Biome_Name ?? "Unknown",
                 DurationInSeconds = Duration,
-                Points = localPoints,
+                Points = Points,
                 PlayerName = Player_Name ?? "Unknown",
                 IsFromCloud = true // Mark as downloaded from cloud
             };

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using BepInEx.Logging;
 using UnityEngine;
 using FollowMePeak.Models;
@@ -56,7 +55,7 @@ namespace FollowMePeak.Managers
                 CreationTime = DateTime.Now,
                 BiomeName = biomeName ?? "Unbekannt",
                 DurationInSeconds = Time.time - _recordingStartTime,
-                Points = _currentRecordedClimb.Select(vec => new SerializableVector3(vec)).ToList()
+                Points = [.._currentRecordedClimb],
             };
             
             // Generate share code for the new climb

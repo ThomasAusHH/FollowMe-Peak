@@ -51,7 +51,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<HealthResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<HealthResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         IsServerReachable = response.Status == "healthy";
                         
                         if (IsServerReachable)
@@ -116,7 +116,7 @@ namespace FollowMePeak.Services
             string url = $"{_config.BaseUrl}/api/climbs";
             
             // Convert ClimbData to server format and reduce points if necessary
-            var apiPoints = climbData.Points.Select(p => p.ToApiVector3()).ToList();
+            var apiPoints = climbData.Points;
             apiPoints = ReducePointsIfNeeded(apiPoints);
             
             var uploadData = new
@@ -130,7 +130,7 @@ namespace FollowMePeak.Services
                 tags = new string[] { } // Can be extended later
             };
 
-            string json = JsonConvert.SerializeObject(uploadData);
+            string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
             
             // Check payload size before upload
             if (json.Length > GetMaxPayloadSize())
@@ -157,7 +157,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text, CommonJsonSettings.Default);
                         
                         if (response.Success)
                         {
@@ -236,7 +236,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ClimbListResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ClimbListResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         var climbs = new List<ClimbData>();
                         
                         if (response.Data != null)
@@ -307,7 +307,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ClimbSearchResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ClimbSearchResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         
                         if (response.Success && response.Data != null)
                         {
@@ -381,7 +381,7 @@ namespace FollowMePeak.Services
         }
 
         // Helper method to reduce points if path is too complex
-        private List<ApiVector3> ReducePointsIfNeeded(List<ApiVector3> points)
+        private List<Vector3> ReducePointsIfNeeded(List<Vector3> points)
         {
             const int maxPoints = 2000; // Reasonable limit for most paths
             
@@ -391,7 +391,7 @@ namespace FollowMePeak.Services
             _logger.LogWarning($"Path has {points.Count} points, reducing to {maxPoints} for upload");
 
             // Use simple decimation - take every nth point to reduce complexity
-            var reducedPoints = new List<ApiVector3>();
+            var reducedPoints = new List<Vector3>();
             float step = (float)points.Count / maxPoints;
             
             for (int i = 0; i < maxPoints; i++)

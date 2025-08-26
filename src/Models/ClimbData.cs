@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace FollowMePeak.Models
@@ -10,7 +11,7 @@ namespace FollowMePeak.Models
         public DateTime CreationTime { get; set; }
         public string BiomeName { get; set; }
         public float DurationInSeconds { get; set; }
-        public List<SerializableVector3> Points { get; set; }
+        public List<Vector3> Points { get; set; }
         
         // Extended properties for sharing and identification
         public string SaveName { get; set; } = "";
@@ -95,25 +96,4 @@ namespace FollowMePeak.Models
         }
     }
     */
-
-    public struct SerializableVector3
-    {
-        public float X, Y, Z;
-        public SerializableVector3(Vector3 vec) { X = vec.x; Y = vec.y; Z = vec.z; }
-        public Vector3 ToVector3() { return new Vector3(X, Y, Z); }
-        
-        // Convert to API format (lowercase for server compatibility)
-        public ApiVector3 ToApiVector3() { return new ApiVector3 { x = X, y = Y, z = Z }; }
-    }
-
-    // API-compatible vector structure (lowercase for server)
-    public struct ApiVector3
-    {
-        public float x, y, z;
-        
-        public ApiVector3(Vector3 vec) { x = vec.x; y = vec.y; z = vec.z; }
-        public ApiVector3(SerializableVector3 vec) { x = vec.X; y = vec.Y; z = vec.Z; }
-        public Vector3 ToVector3() { return new Vector3(x, y, z); }
-        public SerializableVector3 ToSerializableVector3() { return new SerializableVector3 { X = x, Y = y, Z = z }; }
-    }
 }
