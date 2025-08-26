@@ -383,7 +383,7 @@ namespace FollowMePeak.Services
         // Helper method to reduce points if path is too complex
         private List<Vector3> ReducePointsIfNeeded(List<Vector3> points)
         {
-            const int maxPoints = 2000; // Reasonable limit for most paths
+            const int maxPoints = 8000; // Reasonable limit for most paths
             
             if (points.Count <= maxPoints)
                 return points;

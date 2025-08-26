@@ -83,7 +83,7 @@ namespace FollowMePeak.Managers
             {
                 if (Camera.main != null) 
                     _currentRecordedClimb.Add(Camera.main.transform.position);
-                yield return new WaitForSeconds(2.0f);
+                yield return new WaitForSeconds(0.5f);
             }
         }
     }
