@@ -450,6 +450,9 @@ namespace FollowMePeak.ModMenu
                         Debug.Log($"[ModMenu] Canvas '{canvas.name}' sortingOrder set to: {canvas.sortingOrder}");
                     }
                 }
+                
+                // Trigger OnShow for the active tab when opening menu
+                _uiController?.OnMenuOpened();
             }
             else
             {
