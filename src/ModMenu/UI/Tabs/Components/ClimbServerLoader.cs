@@ -13,6 +13,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         private ClimbDataService _climbDataService;
         private bool _hasLoadedForCurrentLevel = false;
         private string _lastLoadedLevel = "";
+        private string _lastBiomeFilter = "";
         private bool _isLoading = false;
         private List<ClimbData> _currentPageClimbs = new List<ClimbData>();
         
@@ -29,7 +30,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             _climbDataService = climbDataService;
         }
         
-        public void CheckAndLoadInitialData()
+        public void CheckAndLoadInitialData(string biomeFilter = "")
         {
             // Check if we have a valid level ID (this is more reliable than scene name)
             string levelId = _climbDataService?.CurrentLevelID;
@@ -40,18 +41,18 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                 return;
             }
             
-            // Check if we already loaded for this level
-            if (_hasLoadedForCurrentLevel && _lastLoadedLevel == levelId)
+            // Check if we already loaded for this level and filter combination
+            if (_hasLoadedForCurrentLevel && _lastLoadedLevel == levelId && _lastBiomeFilter == biomeFilter)
             {
-                Debug.Log($"[ClimbServerLoader] Already loaded climbs for {levelId}");
+                Debug.Log($"[ClimbServerLoader] Already loaded climbs for {levelId} with filter '{biomeFilter}'");
                 return;
             }
             
             // Load climbs from server
-            LoadClimbsFromServer(levelId);
+            LoadClimbsFromServer(levelId, biomeFilter);
         }
         
-        private void LoadClimbsFromServer(string levelId)
+        private void LoadClimbsFromServer(string levelId, string biomeFilter = "")
         {
             if (_isLoading)
             {
@@ -74,12 +75,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             }
             
             _isLoading = true;
-            Debug.Log($"[ClimbServerLoader] Loading climbs from server for level: {levelId}");
+            Debug.Log($"[ClimbServerLoader] Loading climbs from server for level: {levelId}, biome filter: '{biomeFilter}'");
             
             // Clear previous server climbs
             _currentPageClimbs.Clear();
             
-            // Request first 25 climbs using the DownloadClimbs method
+            // Request first 25 climbs using the DownloadClimbs method with biome filter
             _apiService.DownloadClimbs(levelId, (downloadedClimbs, error, meta) =>
             {
                 _isLoading = false;
@@ -110,6 +111,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     
                     _hasLoadedForCurrentLevel = true;
                     _lastLoadedLevel = levelId;
+                    _lastBiomeFilter = biomeFilter;
                     
                     // Save climbs locally
                     _climbDataService.SaveClimbsToFile(false);
@@ -134,7 +136,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     Debug.LogError($"[ClimbServerLoader] {errorMsg}");
                     OnLoadError?.Invoke(errorMsg);
                 }
-            }, 25, 0, "", "", "", "created_at", "desc");
+            }, 25, 0, "", biomeFilter, "", "created_at", "desc");
         }
         
         
@@ -142,6 +144,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         {
             _hasLoadedForCurrentLevel = false;
             _lastLoadedLevel = "";
+            _lastBiomeFilter = "";
             _isLoading = false;
             _currentPageClimbs.Clear();
         }
@@ -151,6 +154,23 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         {
             Debug.Log($"[ClimbServerLoader] Level changed, resetting state");
             Reset();
+        }
+        
+        // Force reload with new filter
+        public void ReloadWithBiomeFilter(string biomeFilter)
+        {
+            Debug.Log($"[ClimbServerLoader] Reloading with biome filter: {biomeFilter}");
+            
+            string levelId = _climbDataService?.CurrentLevelID;
+            if (string.IsNullOrEmpty(levelId) || levelId.Contains("_unknown") || levelId.Contains("placeholder"))
+            {
+                Debug.Log($"[ClimbServerLoader] Not in a valid level, skipping reload");
+                return;
+            }
+            
+            // Force reload by resetting the cached filter
+            _hasLoadedForCurrentLevel = false;
+            LoadClimbsFromServer(levelId, biomeFilter);
         }
     }
 }

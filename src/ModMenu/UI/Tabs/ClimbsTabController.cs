@@ -212,15 +212,43 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 {
                     Debug.Log($"[ClimbsTab] Filter activated: {filter}");
                     _filterManager.SetFilter(filter);
+                    
+                    // Convert filter to biome name for API call
+                    string biomeFilterName = GetBiomeFilterName(filter);
+                    
+                    // Reload from server with biome filter
+                    _serverLoader?.ReloadWithBiomeFilter(biomeFilterName);
+                    
                     RefreshClimbsList();
                 }
                 else if (!IsAnyFilterActive())
                 {
                     Debug.Log("[ClimbsTab] All filters deactivated, showing all climbs");
                     _filterManager.SetFilter(ClimbFilterManager.BiomeFilter.All);
+                    
+                    // Reload from server without filter
+                    _serverLoader?.ReloadWithBiomeFilter("");
+                    
                     RefreshClimbsList();
                 }
             });
+        }
+        
+        private string GetBiomeFilterName(ClimbFilterManager.BiomeFilter filter)
+        {
+            switch (filter)
+            {
+                case ClimbFilterManager.BiomeFilter.Beach:
+                    return "Beach";
+                case ClimbFilterManager.BiomeFilter.Tropics:
+                    return "Tropics";
+                case ClimbFilterManager.BiomeFilter.AlpineMesa:
+                    return "Alpine"; // Or "Mesa" - API should handle both
+                case ClimbFilterManager.BiomeFilter.Caldera:
+                    return "Caldera";
+                default:
+                    return "";
+            }
         }
         
         private void SetupSearchButton()
@@ -278,11 +306,10 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             else
             {
                 // Combined mode: server climbs + local climbs
-                // Apply filter to server climbs as well
-                var filteredServerClimbs = _filterManager.FilterClimbs(_serverLoader.CurrentPageClimbs);
-                displayClimbs.AddRange(filteredServerClimbs);
+                // Server climbs are already filtered by the API call, so add them directly
+                displayClimbs.AddRange(_serverLoader.CurrentPageClimbs);
                 
-                // Add local climbs that are not from cloud (also filtered)
+                // Add local climbs that are not from cloud (apply filter to local climbs only)
                 var localClimbs = _climbDataService.GetAllClimbs()
                     .Where(c => !c.IsFromCloud);
                 var filteredLocalClimbs = _filterManager.FilterClimbs(localClimbs.ToList());
