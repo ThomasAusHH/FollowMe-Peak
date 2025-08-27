@@ -17,6 +17,7 @@ namespace FollowMePeak.Models
         public string PlayerName { get; set; } = "Local";
         public bool IsFromCloud { get; set; } = false;
         public string ShareCode { get; set; } = "";
+        public int AscentLevel { get; set; } = 0; // Ascent level (-1 to 8+, -1 = not started, 0-8+ = progress)
         // public List<string> Tags { get; set; } = new List<string>();
         
         // Generate user-friendly save name if empty

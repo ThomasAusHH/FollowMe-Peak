@@ -54,6 +54,7 @@ namespace FollowMePeak.Models
         public bool Is_Successful { get; set; }
         // public List<string> Tags { get; set; }
         public string Share_Code { get; set; }
+        public int Ascent_Level { get; set; } = 0; // Ascent level from server
         public long Upload_Time { get; set; }
         public string Created_At { get; set; }
 
@@ -70,7 +71,8 @@ namespace FollowMePeak.Models
                 DurationInSeconds = Duration,
                 Points = localPoints,
                 PlayerName = Player_Name ?? "Unknown",
-                IsFromCloud = true // Mark as downloaded from cloud
+                IsFromCloud = true, // Mark as downloaded from cloud
+                AscentLevel = Ascent_Level // Include ascent level from server
             };
             
             // Use share code from server or generate if not available

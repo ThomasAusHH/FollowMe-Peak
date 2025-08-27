@@ -833,28 +833,17 @@ namespace FollowMePeak.UI
         
         private string GetCurrentLevelId()
         {
-            // Try to get level ID from existing climbs or current level service
-            var existingClimbs = _climbDataService.GetAllClimbs().Where(c => c.IsFromCloud).ToList();
-            
-            if (existingClimbs.Any())
-            {
-                // Extract level ID from the server log you showed: "Level_4_67"
-                // This should work based on your server logs
-                Debug.Log("Using level ID from existing cloud climbs");
-                return "Level_4_67"; // Use the level from your server logs
-            }
-            
-            // Try to get from the climb data service current level
+            // Primary: Get from the climb data service current level (set in Plugin.cs)
             string currentLevel = _climbDataService.CurrentLevelID;
-            if (!string.IsNullOrEmpty(currentLevel))
+            if (!string.IsNullOrEmpty(currentLevel) && !currentLevel.EndsWith("_unknown"))
             {
-                Debug.Log($"Using current level ID: {currentLevel}");
+                Debug.Log($"Using current level ID from ClimbDataService: {currentLevel}");
                 return currentLevel;
             }
             
-            // Fallback to the level you showed in the logs
-            Debug.Log("Using fallback level ID: Level_4_67");
-            return "Level_4_67";
+            // If current level is not set, we're likely not in a level yet
+            Debug.LogWarning("Current level ID not available - player may not be in a level yet");
+            return null;
         }
         
         private bool IsPlayerInLevel()
@@ -927,6 +916,24 @@ namespace FollowMePeak.UI
                 Cursor.lockState = _originalCursorLockState;
                 Cursor.visible = _originalCursorVisible;
             }
+        }
+        
+        public void Cleanup()
+        {
+            // Reset cursor state
+            if (_showMenu)
+            {
+                Cursor.lockState = _originalCursorLockState;
+                Cursor.visible = _originalCursorVisible;
+            }
+            
+            // Reset state
+            _showMenu = false;
+            _scrollPosition = Vector2.zero;
+            _selectedTab = 0;
+            _peakCodeSearch = "";
+            _currentPage = 0;
+            _currentPageClimbs.Clear();
         }
     }
 }
