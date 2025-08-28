@@ -12,28 +12,24 @@ namespace FollowMePeak.Managers
     {
         private readonly ClimbDataService _climbDataService;
         private readonly ManualLogSource _logger;
-        private readonly AscentLevelService _ascentLevelService;
         
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
-        private bool _isRecording = false;
         private float _recordingStartTime;
         private MonoBehaviour _coroutineRunner;
 
-        public ClimbRecordingManager(ClimbDataService climbDataService, AscentLevelService ascentLevelService, ManualLogSource logger, MonoBehaviour coroutineRunner)
+        public bool IsRecording { get; private set; } = false;
+        public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
         {
             _climbDataService = climbDataService;
-            _ascentLevelService = ascentLevelService;
             _logger = logger;
             _coroutineRunner = coroutineRunner;
         }
 
-        public bool IsRecording => _isRecording;
-
         public void StartRecording()
         {
-            if (_isRecording) return;
-            _isRecording = true;
-            _currentRecordedClimb.Clear();
+            if (IsRecording) return;
+            IsRecording = true;
+            _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
             _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
             _coroutineRunner.StartCoroutine(RecordClimbRoutine());
@@ -41,36 +37,54 @@ namespace FollowMePeak.Managers
 
         public void StopRecording()
         {
-            if (!_isRecording) return;
-            _isRecording = false;
+            if (!IsRecording) return;
+            IsRecording = false;
             _logger.LogInfo($"Aufzeichnung gestoppt. {_currentRecordedClimb.Count} Punkte zwischengespeichert.");
         }
 
         public void SaveCurrentClimb(string biomeName)
         {
             StopRecording();
-            if (_currentRecordedClimb.Count < 2) return;
-            
-            var newClimbData = new ClimbData
+
+            var currentClimb = _currentRecordedClimb;
+            if (currentClimb.Count < 2) return;
+
+            // Reset the current recorded climb
+            // (but don't clear the list, we need that list to save it; instead assign a new empty list)
+            _currentRecordedClimb = [];
+
+            var durationInSeconds = Time.time - _recordingStartTime;
+
+            BepInEx.ThreadingHelper.Instance.StartAsyncInvoke(CreateClimbData);
+            return;
+
+            Action CreateClimbData()
             {
-                Id = Guid.NewGuid(),
-                CreationTime = DateTime.Now,
-                BiomeName = biomeName ?? "Unbekannt",
-                DurationInSeconds = Time.time - _recordingStartTime,
-                Points = [.._currentRecordedClimb],
-                AscentLevel = _ascentLevelService.CurrentAscentLevel,
-            };
+                var newClimbData = new ClimbData
+                {
+                    Id = Guid.NewGuid(),
+                    CreationTime = DateTime.Now,
+                    BiomeName = biomeName ?? "Unbekannt",
+                    DurationInSeconds = durationInSeconds,
+                    Points = currentClimb,
+                    AscentLevel = Ascents.currentAscent,
+                };
+
+                // Generate share code for the new climb
+                newClimbData.GenerateShareCode();
+                return () => AfterClimbIsCreated(newClimbData);
+            }
+
+            void AfterClimbIsCreated(ClimbData newClimbData)
+            {
+                _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
+
+                _climbDataService.AddClimb(newClimbData);
+                _climbDataService.SaveClimbsToFile(false);
             
-            // Generate share code for the new climb
-            newClimbData.GenerateShareCode();
-            
-            _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
-            
-            _climbDataService.AddClimb(newClimbData);
-            _climbDataService.SaveClimbsToFile(false);
-            
-            // Show tag selection popup for successful climbs
-            ShowTagSelectionForNewClimb(newClimbData);
+                // Show tag selection popup for successful climbs
+                ShowTagSelectionForNewClimb(newClimbData);
+            }
         }
         
         private void ShowTagSelectionForNewClimb(ClimbData climbData)
@@ -84,10 +98,12 @@ namespace FollowMePeak.Managers
 
         private IEnumerator RecordClimbRoutine()
         {
-            while (_isRecording)
+            while (IsRecording)
             {
-                if (Camera.main != null) 
-                    _currentRecordedClimb.Add(Camera.main.transform.position);
+                // TODO: Is this still valid even if the player is in third-person view?
+                var camera = Camera.main;
+                if (camera != null)
+                    _currentRecordedClimb.Add(camera.transform.position);
                 yield return new WaitForSeconds(0.5f);
             }
         }

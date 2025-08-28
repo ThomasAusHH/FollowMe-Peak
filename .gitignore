@@ -17,7 +17,6 @@ src/**/obj/
 *.md
 
 # BepInEx specific
-libs/
 BepInEx/
 
 # Unity specific

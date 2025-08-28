@@ -50,20 +50,7 @@ namespace FollowMePeak.Services
 
         public void SaveConfig()
         {
-            try
-            {
-                // Ensure directory exists
-                string directory = Path.GetDirectoryName(_configPath);
-                Directory.CreateDirectory(directory);
-
-                string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
-                File.WriteAllText(_configPath, json);
-                _logger.LogInfo("Server configuration saved");
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to save server config: {e.Message}");
-            }
+            FileUtils.WriteJsonFileInBackground(_logger, _configPath, _config);
         }
 
         private ServerConfig CreateDefaultConfig()
