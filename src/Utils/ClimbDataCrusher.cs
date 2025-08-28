@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FollowMePeak.Models;
@@ -77,8 +78,15 @@ public static class ClimbDataCrusher
 
     public static void ReadClimbData(byte[] data, ClimbData climb)
     {
-        climb.Points = [];
-        var currPoint = DecodePointFromFloats(data);
+        climb.Points = new List<Vector3>();
+        
+        if (data == null || data.Length < 12)
+        {
+            // Not enough data for even one point
+            return;
+        }
+        
+        var currPoint = DecodePointFromFloats(data.AsSpan(0, 12));
         climb.Points.Add(currPoint);
 
         int i = 12;
@@ -103,7 +111,7 @@ public static class ClimbDataCrusher
                         i += 7;
                         continue;
                     default:
-                        throw new InvalidOperationException("Unexpected NaN in climb data");
+                        throw new InvalidOperationException($"Unexpected NaN code in climb data: {first.DecodeNaN()}");
                 }
             }
 

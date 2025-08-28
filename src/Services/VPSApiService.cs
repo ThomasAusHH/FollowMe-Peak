@@ -115,26 +115,58 @@ namespace FollowMePeak.Services
             
             string url = $"{_config.BaseUrl}/api/climbs";
             
-            // Convert ClimbData to server format and reduce points if necessary
-            var apiPoints = climbData.Points;
-            apiPoints = ReducePointsIfNeeded(apiPoints);
-            
             int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
             _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
             
-            var uploadData = new
+            string json;
+            
+            // Use compressed format if enabled (you can add a config option for this)
+            bool useCompression = _config.UseCompressedFormat ?? true;
+            
+            if (useCompression)
             {
-                levelId = levelId,
-                playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
-                biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
-                duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
-                points = apiPoints,
-                isSuccessful = true, // Will be determined by validation logic
-                tags = new string[] { }, // Can be extended later
-                ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
-            };
-
-            string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+                // Compress points before upload
+                var compressedData = new System.IO.MemoryStream();
+                Utils.ClimbDataCrusher.WriteClimbData(compressedData, climbData);
+                var compressedBytes = compressedData.ToArray();
+                
+                var uploadData = new
+                {
+                    levelId = levelId,
+                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                    pointData = Convert.ToBase64String(compressedBytes),
+                    compressionVersion = 1,
+                    isSuccessful = true, // Will be determined by validation logic
+                    tags = new string[] { }, // Can be extended later
+                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
+                };
+                
+                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+                _logger.LogInfo($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
+            }
+            else
+            {
+                // Legacy format - convert ClimbData to server format and reduce points if necessary
+                var apiPoints = climbData.Points;
+                apiPoints = ReducePointsIfNeeded(apiPoints);
+                
+                var uploadData = new
+                {
+                    levelId = levelId,
+                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                    points = apiPoints,
+                    isSuccessful = true, // Will be determined by validation logic
+                    tags = new string[] { }, // Can be extended later
+                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
+                };
+                
+                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+                _logger.LogInfo($"Using legacy upload format. Points: {apiPoints.Count}");
+            }
             
             // Find ascentLevel in JSON for debugging
             int ascentIndex = json.IndexOf("\"ascentLevel\":");
@@ -242,6 +274,12 @@ namespace FollowMePeak.Services
             
             urlBuilder.Append($"&sort_by={sortBy}&sort_order={sortOrder}");
             
+            // Request compressed format if enabled
+            if (_config.UseCompressedFormat ?? true)
+            {
+                urlBuilder.Append("&format=compressed");
+            }
+            
             string url = urlBuilder.ToString();
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
@@ -262,7 +300,15 @@ namespace FollowMePeak.Services
                         {
                             foreach (var serverClimb in response.Data)
                             {
-                                climbs.Add(serverClimb.ToClimbData());
+                                var climbData = serverClimb.ToClimbData();
+                                
+                                // Debug logging for compressed format
+                                if (!string.IsNullOrEmpty(serverClimb.PointData))
+                                {
+                                    _logger.LogInfo($"Processing compressed climb {serverClimb.Id}: PointData length={serverClimb.PointData.Length}, Points count={climbData.Points?.Count ?? 0}");
+                                }
+                                
+                                climbs.Add(climbData);
                             }
                         }
                         
@@ -314,6 +360,12 @@ namespace FollowMePeak.Services
         private IEnumerator SearchClimbByPeakCodeCoroutine(string peakCode, System.Action<ClimbData, string> callback)
         {
             string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode}";
+            
+            // Request compressed format if enabled
+            if (_config.UseCompressedFormat ?? true)
+            {
+                url += "?format=compressed";
+            }
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
