@@ -15,7 +15,8 @@ public static class CommonJsonSettings
     public static readonly JsonSerializerSettings Compact = new()
     {
         Formatting = Formatting.None,
-        NullValueHandling = NullValueHandling.Ignore,
+        NullValueHandling = NullValueHandling.Include,
+        DefaultValueHandling = DefaultValueHandling.Include,
         Converters = [new ApiVector3Converter()],
     };
 

@@ -10,6 +10,7 @@ using FollowMePeak.Managers;
 using FollowMePeak.Models;
 using FollowMePeak.UI;
 using FollowMePeak.Patches;
+using FollowMePeak.ModMenu;
 
 namespace FollowMePeak
 {
@@ -22,6 +23,7 @@ namespace FollowMePeak
         private ClimbDataService _climbDataService;
         private ClimbRecordingManager _recordingManager;
         private ClimbVisualizationManager _visualizationManager;
+        private AscentLevelService _ascentLevelService;
         private FollowMeUI _ui;
         
         // Cloud sync services
@@ -29,6 +31,12 @@ namespace FollowMePeak
         private VPSApiService _vpsApiService;
         private ClimbUploadService _climbUploadService;
         private ClimbDownloadService _climbDownloadService;
+        
+        // Mod Menu
+        private ModMenuManager _modMenuManager;
+        
+        // Harmony instance for proper cleanup
+        private Harmony _harmony;
         
         // Public access for services (needed by other components)
         public ClimbDataService ClimbDataService => _climbDataService;
@@ -41,7 +49,10 @@ namespace FollowMePeak
             InitializeServices();
             
             SceneManager.sceneLoaded += OnSceneLoaded;
-            Harmony.CreateAndPatchAll(typeof(PluginPatches));
+            
+            // Create Harmony instance with plugin GUID
+            _harmony = new Harmony(Info.Metadata.GUID);
+            _harmony.PatchAll(typeof(PluginPatches));
             Logger.LogInfo("Harmony Patches applied.");
         }
 
@@ -49,7 +60,8 @@ namespace FollowMePeak
         {
             // Initialize core services
             _climbDataService = new ClimbDataService(Logger);
-            _recordingManager = new ClimbRecordingManager(_climbDataService, Logger, this);
+            _ascentLevelService = new AscentLevelService(Logger);
+            _recordingManager = new ClimbRecordingManager(_climbDataService, _ascentLevelService, Logger, this);
             _visualizationManager = new ClimbVisualizationManager(_climbDataService);
             
             // Initialize cloud sync services
@@ -61,6 +73,18 @@ namespace FollowMePeak
             // Initialize UI with cloud services
             _ui = new FollowMeUI(_climbDataService, _visualizationManager, _serverConfigService, 
                 _vpsApiService, _climbUploadService, _climbDownloadService);
+            
+            // Initialize Mod Menu with services
+            ModMenuManager.ServerConfig = _serverConfigService;
+            ModMenuManager.ApiService = _vpsApiService;
+            ModMenuManager.UploadService = _climbUploadService;
+            ModMenuManager.DownloadService = _climbDownloadService;
+            ModMenuManager.ClimbDataService = _climbDataService;
+            ModMenuManager.VisualizationManager = _visualizationManager;
+            _modMenuManager = new ModMenuManager();
+            
+            // Load AssetBundle for Mod Menu
+            StartCoroutine(LoadModUIAssetBundle());
                 
             Logger.LogInfo("All services initialized successfully");
             
@@ -74,11 +98,69 @@ namespace FollowMePeak
             }
         }
         
+        private void OnDestroy()
+        {
+            Logger.LogInfo($"Plugin {Info.Metadata.GUID} unloading...");
+            
+            // Unsubscribe from scene events
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            
+            // Unpatch all Harmony patches
+            _harmony?.UnpatchSelf();
+            Logger.LogInfo("Harmony patches removed.");
+            
+            // Clean up Mod Menu
+            _modMenuManager?.Cleanup();
+            _modMenuManager = null;
+            
+            // Clean up UI
+            _ui?.Cleanup();
+            _ui = null;
+            
+            // Clean up managers
+            _visualizationManager?.ClearVisuals();
+            _visualizationManager = null;
+            
+            _recordingManager?.StopRecording();
+            _recordingManager = null;
+            
+            // Clean up services
+            _climbUploadService = null;
+            _climbDownloadService = null;
+            _vpsApiService = null;
+            _serverConfigService = null;
+            _climbDataService = null;
+            _ascentLevelService = null;
+            
+            // Clear static references
+            ModMenuManager.ServerConfig = null;
+            ModMenuManager.ApiService = null;
+            ModMenuManager.UploadService = null;
+            ModMenuManager.DownloadService = null;
+            ModMenuManager.ClimbDataService = null;
+            ModMenuManager.VisualizationManager = null;
+            
+            // Unload AssetBundle
+            AssetBundleService.Instance.Unload();
+            
+            // Clear singleton instance
+            Instance = null;
+            
+            Logger.LogInfo($"Plugin {Info.Metadata.GUID} unloaded!");
+        }
+
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {
                 _ui.ShowMenu = !_ui.ShowMenu;
+            }
+            
+            // Mod Menu with AssetBundle toggle with F3
+            if (Input.GetKeyDown(KeyCode.F3))
+            {
+                Logger.LogInfo($"[Plugin] F3 pressed - Toggling AssetBundle Mod Menu");
+                _modMenuManager?.ToggleAssetBundleMenu();
             }
         }
         
@@ -101,6 +183,58 @@ namespace FollowMePeak
             }
         }
 
+        private IEnumerator LoadModUIAssetBundle()
+        {
+            Logger.LogInfo("[AssetBundle] Starting AssetBundle load coroutine...");
+            Logger.LogInfo($"[AssetBundle] Current Directory: {System.IO.Directory.GetCurrentDirectory()}");
+            Logger.LogInfo($"[AssetBundle] BepInEx Plugin Path: {BepInEx.Paths.PluginPath}");
+            Logger.LogInfo($"[AssetBundle] Application.dataPath: {Application.dataPath}");
+            
+            bool loadComplete = false;
+            bool loadSuccess = false;
+            
+            Logger.LogInfo("[AssetBundle] Calling AssetBundleService.Instance.LoadModUIBundle...");
+            
+            yield return AssetBundleService.Instance.LoadModUIBundle((success) =>
+            {
+                Logger.LogInfo($"[AssetBundle] LoadModUIBundle callback received: success={success}");
+                loadComplete = true;
+                loadSuccess = success;
+            });
+            
+            // Add timeout check
+            float timeout = 5f;
+            float elapsed = 0f;
+            
+            Logger.LogInfo($"[AssetBundle] Waiting for load completion (max {timeout} seconds)...");
+            
+            while (!loadComplete && elapsed < timeout)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            
+            if (!loadComplete)
+            {
+                Logger.LogError($"[AssetBundle] Timeout waiting for AssetBundle load after {timeout} seconds");
+                Logger.LogError($"[AssetBundle] Service instance exists: {AssetBundleService.Instance != null}");
+                Logger.LogError($"[AssetBundle] Service IsLoaded: {AssetBundleService.Instance?.IsLoaded ?? false}");
+            }
+            else if (loadSuccess)
+            {
+                Logger.LogInfo("[AssetBundle] Successfully loaded, notifying ModMenuManager");
+                Logger.LogInfo($"[AssetBundle] ModMenuManager exists: {_modMenuManager != null}");
+                _modMenuManager?.OnAssetBundleLoaded();
+                Logger.LogInfo("[AssetBundle] OnAssetBundleLoaded called");
+            }
+            else
+            {
+                Logger.LogError("[AssetBundle] AssetBundle loading failed - check AssetBundleService logs for details");
+            }
+            
+            Logger.LogInfo($"[AssetBundle] LoadModUIAssetBundle coroutine finished - Success: {loadSuccess}");
+        }
+        
         private IEnumerator InitializePathSystem(Scene scene)
         {
             yield return new WaitForSeconds(0.5f);
@@ -110,6 +244,9 @@ namespace FollowMePeak
                 int levelIndex = nextLevelService.Data.Value.CurrentLevelIndex;
                 _climbDataService.CurrentLevelID = $"{scene.name}_{levelIndex}";
                 Logger.LogInfo($"Level erkannt: {_climbDataService.CurrentLevelID}");
+                
+                // Detect current ascent level
+                _ascentLevelService.DetectCurrentAscentLevel();
                 
                 // Load local paths first
                 _climbDataService.LoadClimbsFromFile();
@@ -127,6 +264,7 @@ namespace FollowMePeak
             {
                 Logger.LogError("NextLevelService or its data could not be found!");
                 _climbDataService.CurrentLevelID = scene.name + "_unknown";
+                _ascentLevelService.Reset();
             }
         }
 
