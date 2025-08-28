@@ -175,7 +175,8 @@ namespace FollowMePeak.Services
                 CreationTime = item.ClimbData.CreationTime,
                 BiomeName = originalBiomeName,
                 DurationInSeconds = item.ClimbData.DurationInSeconds,
-                Points = item.ClimbData.Points
+                Points = item.ClimbData.Points,
+                AscentLevel = item.ClimbData.AscentLevel
             };
 
             // Perform upload

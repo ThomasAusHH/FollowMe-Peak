@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>FollowMePeak</AssemblyName>
-    <Description>FollowMe-Peak - Climb tracking plugin for Content Warning</Description>
+    <Description>FollowMe-Peak - Climb tracking plugin for PEAK</Description>
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
@@ -17,7 +17,7 @@
     <DefineConstants>$(DefineConstants);DEVELOPMENT;LOCAL_SERVER</DefineConstants>
   </PropertyGroup>
 
-    <ItemGroup>
+  <ItemGroup>
     <Reference Include="BepInEx">
       <HintPath>..\libs\BepInEx.dll</HintPath>
     </Reference>
@@ -27,6 +27,9 @@
     <Reference Include="UnityEngine">
       <HintPath>..\libs\UnityEngine.dll</HintPath>
     </Reference>
+     <Reference Include="UnityEngine.AssetBundleModule">
+     <HintPath>..\libs\UnityEngine.AssetBundleModule.dll</HintPath>
+   </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\libs\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
@@ -45,6 +48,27 @@
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>..\libs\UnityEngine.UnityWebRequestModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>..\libs\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>..\libs\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\libs\Unity.TextMeshPro.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\libs\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIElementsModule">
+      <HintPath>..\libs\UnityEngine.UIElementsModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreFontEngineModule">
+      <HintPath>..\libs\UnityEngine.TextCoreFontEngineModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreTextEngineModule">
+      <HintPath>..\libs\UnityEngine.TextCoreTextEngineModule.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
     <HintPath>..\libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -55,4 +79,9 @@
   <HintPath>..\libs\Zorro.Core.Runtime.dll</HintPath>
 </Reference>
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\libs\modui" />
+  </ItemGroup>
+
 </Project>

@@ -87,5 +87,18 @@ namespace FollowMePeak.Utils
             // Reasonable limits for climb points
             return pointCount >= 2 && pointCount <= 10000;
         }
+        
+        // Validate and clamp ascent level
+        public static int ClampAscentLevel(int ascentLevel)
+        {
+            // Ascent levels range from -1 (not started) to 8+ (maximum difficulty)
+            return Math.Max(-1, Math.Min(8, ascentLevel));
+        }
+        
+        // Validate ascent level range
+        public static bool IsValidAscentLevel(int ascentLevel)
+        {
+            return ascentLevel >= -1 && ascentLevel <= 8;
+        }
     }
 }

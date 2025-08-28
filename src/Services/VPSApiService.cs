@@ -119,6 +119,9 @@ namespace FollowMePeak.Services
             var apiPoints = climbData.Points.Select(p => p.ToApiVector3()).ToList();
             apiPoints = ReducePointsIfNeeded(apiPoints);
             
+            int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
+            _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
+            
             var uploadData = new
             {
                 levelId = levelId,
@@ -127,10 +130,30 @@ namespace FollowMePeak.Services
                 duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
                 points = apiPoints,
                 isSuccessful = true, // Will be determined by validation logic
-                tags = new string[] { } // Can be extended later
+                tags = new string[] { }, // Can be extended later
+                ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
             };
 
-            string json = JsonConvert.SerializeObject(uploadData);
+            string json = JsonConvert.SerializeObject(uploadData, Formatting.None, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Include,
+                DefaultValueHandling = DefaultValueHandling.Include
+            });
+            
+            // Find ascentLevel in JSON for debugging
+            int ascentIndex = json.IndexOf("\"ascentLevel\":");
+            if (ascentIndex >= 0)
+            {
+                int endIndex = Math.Min(ascentIndex + 50, json.Length);
+                string ascentPart = json.Substring(ascentIndex, endIndex - ascentIndex);
+                _logger.LogInfo($"Upload JSON contains ascentLevel: {ascentPart}");
+            }
+            else
+            {
+                _logger.LogError("Upload JSON does NOT contain ascentLevel field!");
+            }
+            
+            _logger.LogInfo($"Upload JSON payload (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}...");
             
             // Check payload size before upload
             if (json.Length > GetMaxPayloadSize())

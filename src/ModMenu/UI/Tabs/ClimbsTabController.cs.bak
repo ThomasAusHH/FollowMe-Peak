@@ -1,0 +1,574 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections.Generic;
+using System.Linq;
+using FollowMePeak.Services;
+using FollowMePeak.Models;
+using FollowMePeak.Managers;
+using FollowMePeak.ModMenu.UI.Helpers;
+using System;
+
+namespace FollowMePeak.ModMenu.UI.Tabs
+{
+    /// <summary>
+    /// Controls the Climbs tab UI
+    /// </summary>
+    public class ClimbsTabController
+    {
+        // UI Elements
+        private GameObject _climbsPage;
+        private Toggle _beachToggle;
+        private Toggle _tropicsToggle;
+        private Toggle _alpineMesaToggle;
+        private Toggle _calderaToggle;
+        private TMP_InputField _climbCodeInput;
+        private Button _climbCodeSearchButton;
+        private Transform _scrollView;
+        private Transform _scrollViewport; 
+        private Transform _scrollContent;  // The actual content container
+        private GameObject _climbItemTemplate;
+        private ScrollRect _scrollRect;
+        
+        // State
+        private List<GameObject> _climbListItems = new List<GameObject>();
+        private string _currentLevelFilter = "All";
+        private HashSet<string> _visibleClimbIds = new HashSet<string>();
+        
+        // Services
+        private VPSApiService _apiService;
+        private ClimbDataService _climbDataService;
+        private ClimbVisualizationManager _visualizationManager;
+        
+        public GameObject ClimbsPage => _climbsPage;
+        
+        public void Initialize(GameObject root, VPSApiService apiService, 
+            ClimbDataService climbDataService, ClimbVisualizationManager visualizationManager)
+        {
+            _apiService = apiService;
+            _climbDataService = climbDataService;
+            _visualizationManager = visualizationManager;
+            
+            FindUIElements(root);
+            SetupToggles();
+            SetupButtons();
+        }
+        
+        private void FindUIElements(GameObject root)
+        {
+            Debug.Log("[ClimbsTab] Finding UI elements");
+            
+            // Find Climbs Page
+            Transform pages = root.transform.Find("MyModMenuPanel/Pages");
+            if (pages != null)
+            {
+                Transform climbsPage = pages.Find("ClimbsPage");
+                if (climbsPage != null) _climbsPage = climbsPage.gameObject;
+            }
+            
+            if (_climbsPage == null) return;
+            
+            // Find Toggles
+            Transform toggleGroup = _climbsPage.transform.Find("ToggleGroupContainer");
+            if (toggleGroup != null)
+            {
+                _beachToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "BeachToggle");
+                _tropicsToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "TropicsToggle");
+                _alpineMesaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "AlpineMesaToggle");
+                _calderaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "CalderaToggle");
+            }
+            
+            // Find Search Elements
+            Transform climbCodeSearch = _climbsPage.transform.Find("ClimbCodeSearch");
+            if (climbCodeSearch != null)
+            {
+                _climbCodeInput = UIElementFinder.FindComponent<TMP_InputField>(climbCodeSearch, "ClimbCodeEnter");
+                _climbCodeSearchButton = UIElementFinder.FindComponent<Button>(climbCodeSearch, "ClimbCodeSearchButton");
+            }
+            
+            // Find and setup ScrollView
+            SetupScrollViewStructure();
+        }
+        
+        private void SetupScrollViewStructure()
+        {
+            // Find ScrollView
+            _scrollView = UIElementFinder.FindTransform(_climbsPage.transform, "ClimbsScrollView");
+            if (_scrollView == null)
+            {
+                Debug.LogError("[ClimbsTab] ScrollView not found!");
+                return;
+            }
+            
+            Debug.Log("[ClimbsTab] Found ScrollView");
+            
+            // Find Viewport
+            _scrollViewport = _scrollView.Find("ClimbsScrollViewport");
+            if (_scrollViewport == null)
+            {
+                Debug.LogError("[ClimbsTab] Viewport not found!");
+                return;
+            }
+            
+            Debug.Log("[ClimbsTab] Found viewport");
+            
+            // Use viewport as content container (Unity structure has items directly in viewport)
+            _scrollContent = _scrollViewport;
+            
+            // Find template - should be ClimbsScrollContent in the viewport
+            Transform template = _scrollViewport.Find("ClimbsScrollContent");
+            if (template == null)
+            {
+                // Try alternative name without 's'
+                template = _scrollViewport.Find("ClimbScrollContent");
+            }
+            
+            if (template != null)
+            {
+                _climbItemTemplate = template.gameObject;
+                _climbItemTemplate.SetActive(false);
+                Debug.Log($"[ClimbsTab] Found template. Template size: {template.GetComponent<RectTransform>()?.sizeDelta}");
+            }
+            else
+            {
+                Debug.LogError("[ClimbsTab] Template 'ClimbsScrollContent' not found in viewport!");
+            }
+            
+            // Setup ScrollRect and layout
+            SetupScrollRectAndLayout();
+        }
+        
+        private void SetupScrollRectAndLayout()
+        {
+            if (_scrollView == null || _scrollViewport == null || _scrollContent == null) return;
+            
+            Debug.Log("[ClimbsTab] Setting up ScrollRect and layout");
+            
+            // Setup ScrollRect on ScrollView  
+            _scrollRect = _scrollView.GetComponent<ScrollRect>();
+            if (_scrollRect == null)
+            {
+                _scrollRect = _scrollView.gameObject.AddComponent<ScrollRect>();
+                Debug.Log("[ClimbsTab] Added ScrollRect component");
+            }
+            
+            // Configure ScrollRect - viewport is content since we're using viewport directly
+            _scrollRect.content = _scrollViewport.GetComponent<RectTransform>();
+            _scrollRect.viewport = _scrollViewport.GetComponent<RectTransform>();
+            _scrollRect.horizontal = false;
+            _scrollRect.vertical = true;
+            _scrollRect.scrollSensitivity = 30f;
+            _scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            _scrollRect.inertia = true;
+            _scrollRect.decelerationRate = 0.135f;
+            
+            // Add VerticalLayoutGroup to viewport (which is our content)
+            var layoutGroup = _scrollViewport.GetComponent<VerticalLayoutGroup>();
+            if (layoutGroup == null)
+            {
+                layoutGroup = _scrollViewport.gameObject.AddComponent<VerticalLayoutGroup>();
+            }
+            layoutGroup.spacing = 10f;
+            layoutGroup.childControlHeight = false;
+            layoutGroup.childControlWidth = true;
+            layoutGroup.childForceExpandHeight = false;
+            layoutGroup.childForceExpandWidth = true;
+            layoutGroup.childAlignment = TextAnchor.UpperCenter;
+            layoutGroup.padding = new RectOffset(10, 10, 10, 10);
+            
+            // Add ContentSizeFitter to viewport (which is our content)
+            var sizeFitter = _scrollViewport.GetComponent<ContentSizeFitter>();
+            if (sizeFitter == null)
+            {
+                sizeFitter = _scrollViewport.gameObject.AddComponent<ContentSizeFitter>();
+            }
+            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            
+            // Add RectMask2D to ScrollView for proper clipping (instead of Mask)
+            var rectMask = _scrollView.GetComponent<RectMask2D>();
+            if (rectMask == null)
+            {
+                rectMask = _scrollView.gameObject.AddComponent<RectMask2D>();
+                Debug.Log("[ClimbsTab] Added RectMask2D to ScrollView for clipping");
+            }
+            
+            Debug.Log("[ClimbsTab] ScrollRect and layout setup complete");
+        }
+        
+        private void SetupToggles()
+        {
+            Debug.Log("[ClimbsTab] Setting up toggles");
+            
+            // Setup toggle group
+            ToggleGroup toggleGroup = null;
+            if (_beachToggle != null)
+            {
+                Transform container = _beachToggle.transform.parent;
+                if (container != null)
+                {
+                    toggleGroup = container.GetComponent<ToggleGroup>();
+                    if (toggleGroup == null)
+                    {
+                        toggleGroup = container.gameObject.AddComponent<ToggleGroup>();
+                        toggleGroup.allowSwitchOff = true;
+                    }
+                }
+            }
+            
+            // Setup individual toggles
+            SetupToggle(_beachToggle, toggleGroup, "Beach");
+            SetupToggle(_tropicsToggle, toggleGroup, "Tropics");
+            SetupToggle(_alpineMesaToggle, toggleGroup, "AlpineMesa");
+            SetupToggle(_calderaToggle, toggleGroup, "Caldera");
+        }
+        
+        private void SetupToggle(Toggle toggle, ToggleGroup group, string levelName)
+        {
+            if (toggle == null) return;
+            
+            toggle.group = group;
+            toggle.onValueChanged.RemoveAllListeners();
+            toggle.onValueChanged.AddListener((bool value) => {
+                if (value) 
+                    FilterClimbsByLevel(levelName);
+                else if (!IsAnyFilterActive()) 
+                    FilterClimbsByLevel("All");
+            });
+        }
+        
+        private void SetupButtons()
+        {
+            if (_climbCodeSearchButton != null)
+            {
+                _climbCodeSearchButton.onClick.RemoveAllListeners();
+                _climbCodeSearchButton.onClick.AddListener(SearchClimbByCode);
+            }
+        }
+        
+        public void RefreshClimbsList()
+        {
+            Debug.Log("[ClimbsTab] Refreshing climbs list");
+            
+            if (_climbItemTemplate == null || _scrollContent == null)
+            {
+                Debug.LogError($"[ClimbsTab] Cannot refresh - template: {_climbItemTemplate != null}, content: {_scrollContent != null}");
+                return;
+            }
+            
+            ClearClimbsList();
+            
+            if (_climbDataService == null)
+            {
+                Debug.LogWarning("[ClimbsTab] ClimbDataService is null");
+                return;
+            }
+            
+            var allClimbs = _climbDataService.GetAllClimbs();
+            Debug.Log($"[ClimbsTab] Found {allClimbs.Count} total climbs");
+            
+            // Filter climbs
+            List<ClimbData> filteredClimbs = FilterClimbs(allClimbs);
+            Debug.Log($"[ClimbsTab] Showing {filteredClimbs.Count} filtered climbs");
+            
+            // Create UI items
+            Debug.Log($"[ClimbsTab] Creating {filteredClimbs.Count} climb items");
+            foreach (var climb in filteredClimbs)
+            {
+                CreateClimbListItem(climb);
+            }
+            Debug.Log($"[ClimbsTab] Created {_climbListItems.Count} items total");
+            
+            // Force layout rebuild
+            if (_scrollContent != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_scrollContent.GetComponent<RectTransform>());
+                
+                // Debug content size after rebuild
+                RectTransform contentRect = _scrollContent.GetComponent<RectTransform>();
+                Debug.Log($"[ClimbsTab] Content size after rebuild: {contentRect.rect.size}, Child count: {_scrollContent.childCount}");
+            }
+        }
+        
+        private List<ClimbData> FilterClimbs(List<ClimbData> allClimbs)
+        {
+            if (_currentLevelFilter == "All")
+                return allClimbs;
+            
+            return allClimbs.Where(climb => DoesBiomeMatchFilter(climb.BiomeName, _currentLevelFilter)).ToList();
+        }
+        
+        private bool DoesBiomeMatchFilter(string biomeName, string filter)
+        {
+            if (string.IsNullOrEmpty(biomeName)) return false;
+            
+            string normalizedBiome = biomeName.Replace(" ", "").ToLower();
+            string normalizedFilter = filter.ToLower();
+            
+            switch (normalizedFilter)
+            {
+                case "beach":
+                    return normalizedBiome.Contains("beach");
+                case "tropics":
+                    return normalizedBiome.Contains("tropic") || normalizedBiome.Contains("jungle");
+                case "alpinemesa":
+                    return normalizedBiome.Contains("alpine") || normalizedBiome.Contains("mesa") || normalizedBiome.Contains("mountain");
+                case "caldera":
+                    return normalizedBiome.Contains("caldera") || normalizedBiome.Contains("volcano") || normalizedBiome.Contains("summit");
+                default:
+                    return false;
+            }
+        }
+        
+        private void CreateClimbListItem(ClimbData climb)
+        {
+            if (_climbItemTemplate == null || _scrollContent == null) return;
+            
+            Debug.Log($"[ClimbsTab] Creating list item for climb: {climb.Id}");
+            
+            // Instantiate new item in content container
+            GameObject newItem = UnityEngine.Object.Instantiate(_climbItemTemplate);
+            newItem.transform.SetParent(_scrollContent, false);
+            newItem.SetActive(true);
+            newItem.name = $"Climb_{climb.Id}";
+            
+            // Keep the template's original size
+            RectTransform rectTransform = newItem.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                RectTransform templateRect = _climbItemTemplate.GetComponent<RectTransform>();
+                if (templateRect != null)
+                {
+                    // Use template size but allow width to stretch if needed
+                    rectTransform.sizeDelta = templateRect.sizeDelta;
+                    Debug.Log($"[ClimbsTab] Item size: {rectTransform.sizeDelta}");
+                }
+            }
+            
+            // Set biome icon
+            SetBiomeIcon(newItem, climb.BiomeName);
+            
+            // Set climb info
+            SetClimbInfo(newItem, climb);
+            
+            // Setup visibility toggle
+            SetupVisibilityToggle(newItem, climb);
+            
+            _climbListItems.Add(newItem);
+        }
+        
+        private void SetBiomeIcon(GameObject item, string biomeName)
+        {
+            Transform biomeIconArea = item.transform.Find("BiomeIconArea");
+            if (biomeIconArea == null) return;
+            
+            // Hide all icons first
+            foreach (Transform child in biomeIconArea)
+            {
+                child.gameObject.SetActive(false);
+            }
+            
+            // Show correct icon
+            string normalizedBiome = biomeName?.ToLower() ?? "";
+            Transform iconToShow = null;
+            
+            if (normalizedBiome.Contains("beach"))
+                iconToShow = biomeIconArea.Find("BeachIcon");
+            else if (normalizedBiome.Contains("tropic"))
+                iconToShow = biomeIconArea.Find("TropicsIcon");
+            else if (normalizedBiome.Contains("alpine") || normalizedBiome.Contains("mesa"))
+                iconToShow = biomeIconArea.Find("AlpineMesaIcon");
+            else if (normalizedBiome.Contains("caldera"))
+                iconToShow = biomeIconArea.Find("CalderaIcon");
+            else
+                iconToShow = biomeIconArea.Find("BeachIcon"); // Default fallback
+            
+            if (iconToShow != null)
+                iconToShow.gameObject.SetActive(true);
+        }
+        
+        private void SetClimbInfo(GameObject item, ClimbData climb)
+        {
+            // Set date
+            var dateText = item.transform.Find("ClimbDate")?.GetComponent<TextMeshProUGUI>();
+            if (dateText != null)
+                dateText.text = climb.CreationTime.ToString("dd.MM.yyyy HH:mm");
+            
+            // Set duration
+            var durationText = item.transform.Find("ClimbDuration")?.GetComponent<TextMeshProUGUI>();
+            if (durationText != null)
+            {
+                int minutes = Mathf.FloorToInt(climb.DurationInSeconds / 60f);
+                int seconds = Mathf.FloorToInt(climb.DurationInSeconds % 60f);
+                durationText.text = $"{minutes:00}:{seconds:00}";
+            }
+            
+            // Set ascent level
+            var ascentText = item.transform.Find("ClimbAscent")?.GetComponent<TextMeshProUGUI>();
+            if (ascentText != null)
+                ascentText.text = climb.AscentLevel.ToString();
+        }
+        
+        private void SetupVisibilityToggle(GameObject item, ClimbData climb)
+        {
+            Transform visToggle = item.transform.Find("ClimbVisibilityToggle");
+            if (visToggle == null) return;
+            
+            Toggle toggle = visToggle.GetComponent<Toggle>();
+            if (toggle != null)
+            {
+                // Check if this climb is currently visible
+                toggle.isOn = _visibleClimbIds.Contains(climb.Id.ToString());
+                toggle.onValueChanged.RemoveAllListeners();
+                toggle.onValueChanged.AddListener((bool value) => {
+                    OnClimbVisibilityToggled(climb, value);
+                });
+            }
+        }
+        
+        private void OnClimbVisibilityToggled(ClimbData climb, bool isVisible)
+        {
+            Debug.Log($"[ClimbsTab] Climb {climb.Id} visibility toggled to: {isVisible}");
+            
+            // Update our tracking
+            if (isVisible)
+            {
+                _visibleClimbIds.Add(climb.Id.ToString());
+            }
+            else
+            {
+                _visibleClimbIds.Remove(climb.Id.ToString());
+            }
+            
+            if (_visualizationManager != null)
+            {
+                _visualizationManager.SetClimbVisibility(climb.Id, isVisible);
+            }
+        }
+        
+        private void FilterClimbsByLevel(string levelName)
+        {
+            Debug.Log($"[ClimbsTab] Filtering climbs by level: {levelName}");
+            _currentLevelFilter = levelName;
+            RefreshClimbsList();
+        }
+        
+        private bool IsAnyFilterActive()
+        {
+            return (_beachToggle?.isOn ?? false) ||
+                   (_tropicsToggle?.isOn ?? false) ||
+                   (_alpineMesaToggle?.isOn ?? false) ||
+                   (_calderaToggle?.isOn ?? false);
+        }
+        
+        private void ClearClimbsList()
+        {
+            // Destroy all tracked climb items
+            foreach (var item in _climbListItems)
+            {
+                if (item != null)
+                    UnityEngine.Object.Destroy(item);
+            }
+            _climbListItems.Clear();
+            
+            Debug.Log($"[ClimbsTab] Cleared {_climbListItems.Count} items");
+        }
+        
+        private void SearchClimbByCode()
+        {
+            if (_climbCodeInput == null) return;
+            
+            string searchCode = _climbCodeInput.text?.Trim();
+            if (string.IsNullOrEmpty(searchCode))
+            {
+                Debug.Log("[ClimbsTab] No climb code entered");
+                return;
+            }
+            
+            Debug.Log($"[ClimbsTab] Searching for climb code: {searchCode}");
+            
+            // Search locally first
+            var existingClimb = _climbDataService.GetAllClimbs()
+                .FirstOrDefault(p => p.ShareCode != null && 
+                    p.ShareCode.IndexOf(searchCode, StringComparison.OrdinalIgnoreCase) >= 0);
+            
+            if (existingClimb != null)
+            {
+                HandleClimbFound(existingClimb);
+            }
+            else
+            {
+                SearchClimbCodeOnServer(searchCode);
+            }
+        }
+        
+        private void HandleClimbFound(ClimbData climb)
+        {
+            // Add to visible climbs
+            _visibleClimbIds.Add(climb.Id.ToString());
+            
+            if (_visualizationManager != null)
+            {
+                _visualizationManager.SetClimbVisibility(climb.Id, true);
+            }
+            
+            Debug.Log($"[ClimbsTab] Climb found: {climb.GetDisplayName()}");
+            
+            _climbCodeInput.text = "";
+            RefreshClimbsList();
+        }
+        
+        private void SearchClimbCodeOnServer(string peakCode)
+        {
+            if (_apiService == null)
+            {
+                Debug.LogError("[ClimbsTab] API Service not available for server search");
+                return;
+            }
+            
+            _apiService.SearchClimbByPeakCode(peakCode, (climbData, error) =>
+            {
+                if (climbData != null)
+                {
+                    climbData.IsFromCloud = true;
+                    _climbDataService.AddClimb(climbData);
+                    
+                    // Add to visible climbs
+                    _visibleClimbIds.Add(climbData.Id.ToString());
+                    
+                    if (_visualizationManager != null)
+                    {
+                        _visualizationManager.UpdateVisuals();
+                        _visualizationManager.SetClimbVisibility(climbData.Id, true);
+                    }
+                    
+                    Debug.Log($"[ClimbsTab] Climb found on server: {climbData.GetDisplayName()}");
+                    
+                    if (_climbCodeInput != null)
+                        _climbCodeInput.text = "";
+                    
+                    RefreshClimbsList();
+                }
+                else
+                {
+                    Debug.Log($"[ClimbsTab] Climb code '{peakCode}' not found. {error ?? "Climb does not exist."}");
+                }
+            });
+        }
+        
+        public void Cleanup()
+        {
+            Debug.Log("[ClimbsTab] Cleaning up");
+            
+            if (_climbCodeSearchButton != null)
+                _climbCodeSearchButton.onClick.RemoveAllListeners();
+            
+            if (_beachToggle != null) _beachToggle.onValueChanged.RemoveAllListeners();
+            if (_tropicsToggle != null) _tropicsToggle.onValueChanged.RemoveAllListeners();
+            if (_alpineMesaToggle != null) _alpineMesaToggle.onValueChanged.RemoveAllListeners();
+            if (_calderaToggle != null) _calderaToggle.onValueChanged.RemoveAllListeners();
+            
+            ClearClimbsList();
+        }
+    }
+}
