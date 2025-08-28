@@ -18,8 +18,11 @@ namespace FollowMePeak.Managers
         private float _recordingStartTime;
         private MonoBehaviour _coroutineRunner;
 
+fix/campfire-lag-spike
         public bool IsRecording { get; private set; } = false;
 
+
+ main
         public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
         {
             _climbDataService = climbDataService;
@@ -62,6 +65,7 @@ namespace FollowMePeak.Managers
 
             Action CreateClimbData()
             {
+ fix/campfire-lag-spike
                 var newClimbData = new ClimbData
                 {
                     Id = Guid.NewGuid(),
@@ -83,6 +87,23 @@ namespace FollowMePeak.Managers
 
                 _climbDataService.AddClimb(newClimbData);
                 _climbDataService.SaveClimbsToFile(false);
+
+                Id = Guid.NewGuid(),
+                CreationTime = DateTime.Now,
+                BiomeName = biomeName ?? "Unbekannt",
+                DurationInSeconds = Time.time - _recordingStartTime,
+                Points = _currentRecordedClimb.Select(vec => new SerializableVector3(vec)).ToList(),
+                AscentLevel = Ascents.currentAscent,
+            };
+            
+            // Generate share code for the new climb
+            newClimbData.GenerateShareCode();
+            
+            _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
+            
+            _climbDataService.AddClimb(newClimbData);
+            _climbDataService.SaveClimbsToFile(false);
+ main
             
                 // Show tag selection popup for successful climbs
                 ShowTagSelectionForNewClimb(newClimbData);

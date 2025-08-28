@@ -1,6 +1,6 @@
 # FollowMe-Peak
 
-Ein BepInEx-Plugin für Content Warning, das automatisch Pfade in Levels aufzeichnet und als visuelle Hilfe für andere Spieler anzeigt.
+Ein BepInEx-Plugin für Peak, das automatisch Pfade in Levels aufzeichnet und als visuelle Hilfe für andere Spieler anzeigt.
 
 ## Features
 
@@ -13,7 +13,7 @@ Ein BepInEx-Plugin für Content Warning, das automatisch Pfade in Levels aufzeic
 
 ## Installation
 
-1. Installiere [BepInEx](https://thunderstore.io/c/content-warning/p/BepInEx/BepInExPack/) über den Mod Manager
+1. Installiere [BepInEx](https://thunderstore.io/c/peak/p/BepInEx/BepInExPack_PEAK/) über den Mod Manager
 2. Installiere FollowMe-Peak über deinen Mod Manager
 3. Starte das Spiel
 
@@ -38,7 +38,7 @@ Server-Setup ist optional und das Plugin funktioniert vollständig offline.
 
 ## Kompatibilität
 
-- **Spiel**: Content Warning
+- **Spiel**: Peak
 - **Framework**: BepInEx 5.4.21+
 - **Plattform**: Windows/Steam
 
@@ -59,4 +59,4 @@ Falls das Plugin nicht funktioniert:
 
 ## Support
 
-Bei Problemen oder Fragen erstelle ein Issue im [GitHub Repository](https://github.com/username/FollowMe-Peak).
+Bei Problemen oder Fragen erstelle ein Issue im [GitHub Repository](https://github.com/ThomasAusHH/FollowMe-Peak).
