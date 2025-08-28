@@ -275,18 +275,9 @@ namespace FollowMePeak.Services
         // Save queue to disk
         private void SaveQueue()
         {
-            try
-            {
-                string directory = Path.GetDirectoryName(_queueFilePath);
-                Directory.CreateDirectory(directory);
-
-                string json = JsonConvert.SerializeObject(_uploadQueue, Formatting.Indented);
-                File.WriteAllText(_queueFilePath, json);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to save upload queue: {e.Message}");
-            }
+            // Create defensive copy of queue for saving
+            var queue = new List<UploadQueueItem>(_uploadQueue);
+            FileUtils.WriteJsonFileInBackground(_logger, _queueFilePath, queue);
         }
 
         // Load queue from disk

@@ -271,24 +271,20 @@ namespace FollowMePeak
         public void ShowTagSelectionForNewClimb(ClimbData climbData)
         {
             // Skip tag selection for now and directly upload if auto-upload is enabled
+            UploadIfAutoUploadEnabled(climbData);
+
+            // Show the tag selection UI - DISABLED FOR NOW
+            // _ui.ShowTagSelectionForClimb(climbData, UploadIfAutoUploadEnabled);
+        }
+
+        private void UploadIfAutoUploadEnabled(ClimbData climbData)
+        {
             if (_serverConfigService.Config.EnableCloudSync && _serverConfigService.Config.AutoUpload)
             {
                 _climbUploadService.QueueForUpload(climbData, _climbDataService.CurrentLevelID);
                 Logger.LogInfo($"Queued climb for upload: {climbData.Id}");
+                // Logger.LogInfo($"Queued climb with tags for upload: {climbData.Id} - Tags: {climbData.GetTagsDisplay()}");
             }
-            
-            /* ORIGINAL CODE - DISABLED FOR NOW
-            // Show the tag selection UI
-            _ui.ShowTagSelectionForClimb(climbData, (selectedClimb) =>
-            {
-                // Callback when tags are selected - now upload to cloud
-                if (_serverConfigService.Config.EnableCloudSync && _serverConfigService.Config.AutoUpload)
-                {
-                    _climbUploadService.QueueForUpload(selectedClimb, _climbDataService.CurrentLevelID);
-                    // Logger.LogInfo($"Queued climb with tags for upload: {selectedClimb.Id} - Tags: {selectedClimb.GetTagsDisplay()}");
-                }
-            });
-            */
         }
     }
 }

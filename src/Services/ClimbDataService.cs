@@ -6,6 +6,7 @@ using BepInEx;
 using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Services
 {
@@ -44,19 +45,9 @@ namespace FollowMePeak.Services
         {
             if (string.IsNullOrEmpty(_currentLevelID) || _currentLevelID.EndsWith("_unknown")) return;
             
-            try
-            {
-                string directoryPath = Path.Combine(Paths.PluginPath, "FollowMePeak_Data");
-                Directory.CreateDirectory(directoryPath);
-                string filePath = Path.Combine(directoryPath, $"{_currentLevelID}.json");
-                string json = JsonConvert.SerializeObject(_allLoadedClimbs, Formatting.Indented);
-                File.WriteAllText(filePath, json);
-                _logger.LogInfo($"Successfully saved {_allLoadedClimbs.Count} climbs to '{filePath}'.");
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Error saving climbs: {e}");
-            }
+            var allLoadedClimbs = new List<ClimbData>(_allLoadedClimbs);
+            var filePath = Path.Combine(Paths.PluginPath, "FollowMePeak_Data", $"{_currentLevelID}.json");
+            FileUtils.WriteJsonFileInBackground(_logger, filePath, allLoadedClimbs);
         }
 
         public void LoadClimbsFromFile()
