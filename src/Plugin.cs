@@ -23,7 +23,6 @@ namespace FollowMePeak
         private ClimbDataService _climbDataService;
         private ClimbRecordingManager _recordingManager;
         private ClimbVisualizationManager _visualizationManager;
-        private AscentLevelService _ascentLevelService;
         private FollowMeUI _ui;
         
         // Cloud sync services
@@ -60,8 +59,7 @@ namespace FollowMePeak
         {
             // Initialize core services
             _climbDataService = new ClimbDataService(Logger);
-            _ascentLevelService = new AscentLevelService(Logger);
-            _recordingManager = new ClimbRecordingManager(_climbDataService, _ascentLevelService, Logger, this);
+            _recordingManager = new ClimbRecordingManager(_climbDataService, Logger, this);
             _visualizationManager = new ClimbVisualizationManager(_climbDataService);
             
             // Initialize cloud sync services
@@ -130,7 +128,6 @@ namespace FollowMePeak
             _vpsApiService = null;
             _serverConfigService = null;
             _climbDataService = null;
-            _ascentLevelService = null;
             
             // Clear static references
             ModMenuManager.ServerConfig = null;
@@ -245,9 +242,6 @@ namespace FollowMePeak
                 _climbDataService.CurrentLevelID = $"{scene.name}_{levelIndex}";
                 Logger.LogInfo($"Level erkannt: {_climbDataService.CurrentLevelID}");
                 
-                // Detect current ascent level
-                _ascentLevelService.DetectCurrentAscentLevel();
-                
                 // Load local paths first
                 _climbDataService.LoadClimbsFromFile();
                 
@@ -264,7 +258,6 @@ namespace FollowMePeak
             {
                 Logger.LogError("NextLevelService or its data could not be found!");
                 _climbDataService.CurrentLevelID = scene.name + "_unknown";
-                _ascentLevelService.Reset();
             }
         }
 

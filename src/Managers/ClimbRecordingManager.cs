@@ -13,7 +13,6 @@ namespace FollowMePeak.Managers
     {
         private readonly ClimbDataService _climbDataService;
         private readonly ManualLogSource _logger;
-        private readonly AscentLevelService _ascentLevelService;
         
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
         private float _recordingStartTime;
@@ -21,10 +20,9 @@ namespace FollowMePeak.Managers
 
         public bool IsRecording { get; private set; } = false;
 
-        public ClimbRecordingManager(ClimbDataService climbDataService, AscentLevelService ascentLevelService, ManualLogSource logger, MonoBehaviour coroutineRunner)
+        public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
         {
             _climbDataService = climbDataService;
-            _ascentLevelService = ascentLevelService;
             _logger = logger;
             _coroutineRunner = coroutineRunner;
         }
@@ -71,7 +69,7 @@ namespace FollowMePeak.Managers
                     BiomeName = biomeName ?? "Unbekannt",
                     DurationInSeconds = durationInSeconds,
                     Points = currentClimb.Select(vec => new SerializableVector3(vec)).ToList(),
-                    AscentLevel = _ascentLevelService.CurrentAscentLevel,
+                    AscentLevel = Ascents.currentAscent,
                 };
 
                 // Generate share code for the new climb

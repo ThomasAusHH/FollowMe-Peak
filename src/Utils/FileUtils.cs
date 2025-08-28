@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using BepInEx.Logging;
 using Newtonsoft.Json;
 
-namespace FollowMePeak.Utils;
-
-public static class FileUtils
+namespace FollowMePeak.Utils
+{
+    public static class FileUtils
 {
     public static Task WriteJsonFileInBackground(ManualLogSource logger, string filePath, object payload)
     {
@@ -48,4 +48,5 @@ public static class FileUtils
             File.Replace(tempFileName, targetFileName, null);
         }
     }
+}
 }
