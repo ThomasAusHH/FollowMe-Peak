@@ -28,6 +28,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private GameObject _infoBox;
         private GameObject _notOnIslandNotification;
         private GameObject _noClimbAvailableNotification;
+        private GameObject _notOnIslandNotificationBackgroundImage;
+        private GameObject _noClimbAvailableNotificationBackgroundImage;
         
         // Components
         private ClimbListItemManager _itemManager;
@@ -130,6 +132,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     _noClimbAvailableNotification = t.gameObject;
                     Debug.Log($"[ClimbsTab] Found NoClimbAvailableNotification at: {GetPath(t)}");
                 }
+                else if (t.gameObject.name == "NotOnIslandNotificationBackgroundImage")
+                {
+                    _notOnIslandNotificationBackgroundImage = t.gameObject;
+                    Debug.Log($"[ClimbsTab] Found NotOnIslandNotificationBackgroundImage at: {GetPath(t)}");
+                }
+                else if (t.gameObject.name == "NoClimbAvailableNotificationBackgroundImage")
+                {
+                    _noClimbAvailableNotificationBackgroundImage = t.gameObject;
+                    Debug.Log($"[ClimbsTab] Found NoClimbAvailableNotificationBackgroundImage at: {GetPath(t)}");
+                }
                 else if (t.gameObject.name == "InfoBox")
                 {
                     _infoBox = t.gameObject;
@@ -150,7 +162,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 }
             }
             
-            Debug.Log($"[ClimbsTab] Notification search complete - NotOnIsland: {_notOnIslandNotification != null}, NoClimbs: {_noClimbAvailableNotification != null}, InfoBox: {_infoBox != null}");
+            Debug.Log($"[ClimbsTab] Notification search complete - NotOnIsland: {_notOnIslandNotification != null}, NoClimbs: {_noClimbAvailableNotification != null}, NotOnIslandBG: {_notOnIslandNotificationBackgroundImage != null}, NoClimbsBG: {_noClimbAvailableNotificationBackgroundImage != null}, InfoBox: {_infoBox != null}");
         }
         
         private void FindScrollViewElements()
@@ -239,6 +251,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             var rectMask = scrollView.GetComponent<RectMask2D>();
             if (rectMask == null)
                 scrollView.gameObject.AddComponent<RectMask2D>();
+            
+            // Make ScrollView background transparent
+            var scrollViewImage = scrollView.GetComponent<UnityEngine.UI.Image>();
+            if (scrollViewImage != null)
+            {
+                var color = scrollViewImage.color;
+                color.a = 0f; // Set alpha to 0 (transparent)
+                scrollViewImage.color = color;
+                Debug.Log("[ClimbsTab] ScrollView background set to transparent");
+            }
         }
         
         private void SetupUI()
@@ -497,6 +519,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 Debug.LogWarning("[ClimbsTab] NotOnIslandNotification is null!");
             }
             
+            if (_notOnIslandNotificationBackgroundImage != null)
+            {
+                _notOnIslandNotificationBackgroundImage.SetActive(false);
+                Debug.Log("[ClimbsTab] NotOnIslandNotificationBackgroundImage hidden");
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] NotOnIslandNotificationBackgroundImage is null!");
+            }
+            
             if (_noClimbAvailableNotification != null)
             {
                 _noClimbAvailableNotification.SetActive(false);
@@ -505,6 +537,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             else
             {
                 Debug.LogWarning("[ClimbsTab] NoClimbAvailableNotification is null!");
+            }
+            
+            if (_noClimbAvailableNotificationBackgroundImage != null)
+            {
+                _noClimbAvailableNotificationBackgroundImage.SetActive(false);
+                Debug.Log("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage hidden");
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage is null!");
             }
             
             if (_infoBox != null)
@@ -678,6 +720,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 Debug.LogWarning("[ClimbsTab] Cannot update NotOnIslandNotification - reference is null!");
             }
             
+            if (_notOnIslandNotificationBackgroundImage != null)
+            {
+                _notOnIslandNotificationBackgroundImage.SetActive(showNotOnIsland);
+                Debug.Log($"[ClimbsTab] NotOnIslandNotificationBackgroundImage set to: {showNotOnIsland}");
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] Cannot update NotOnIslandNotificationBackgroundImage - reference is null!");
+            }
+            
             if (_noClimbAvailableNotification != null)
             {
                 _noClimbAvailableNotification.SetActive(showNoClimbs);
@@ -686,6 +738,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             else
             {
                 Debug.LogWarning("[ClimbsTab] Cannot update NoClimbAvailableNotification - reference is null!");
+            }
+            
+            if (_noClimbAvailableNotificationBackgroundImage != null)
+            {
+                _noClimbAvailableNotificationBackgroundImage.SetActive(showNoClimbs);
+                Debug.Log($"[ClimbsTab] NoClimbAvailableNotificationBackgroundImage set to: {showNoClimbs}");
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] Cannot update NoClimbAvailableNotificationBackgroundImage - reference is null!");
             }
             
             // InfoBox nur anzeigen wenn eine Notification aktiv ist

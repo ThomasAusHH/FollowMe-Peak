@@ -63,7 +63,7 @@ namespace FollowMePeak.ModMenu
             
             // Initialize Cloud Sync tab
             _cloudSyncTab = new CloudSyncTabController();
-            _cloudSyncTab.Initialize(menuRoot, _serverConfig);
+            _cloudSyncTab.Initialize(menuRoot, _serverConfig, _apiService);
         }
         
         private void OnTabChanged(string tabName)
