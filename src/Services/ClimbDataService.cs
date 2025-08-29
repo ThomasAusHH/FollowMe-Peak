@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using BepInEx;
 using BepInEx.Logging;
 using Newtonsoft.Json;
@@ -64,7 +63,7 @@ namespace FollowMePeak.Services
             try
             {
                 string json = File.ReadAllText(filePath);
-                _allLoadedClimbs = JsonConvert.DeserializeObject<List<ClimbData>>(json) ?? new List<ClimbData>();
+                _allLoadedClimbs = JsonConvert.DeserializeObject<List<ClimbData>>(json, CommonJsonSettings.Default) ?? new List<ClimbData>();
                 _logger.LogInfo($"{_allLoadedClimbs.Count} climbs loaded for level '{_currentLevelID}'.");
             }
             catch (Exception e)

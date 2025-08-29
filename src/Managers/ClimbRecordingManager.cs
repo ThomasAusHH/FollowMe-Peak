@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using BepInEx.Logging;
 using UnityEngine;
 using FollowMePeak.Models;
@@ -67,7 +66,7 @@ namespace FollowMePeak.Managers
                     CreationTime = DateTime.Now,
                     BiomeName = biomeName ?? "Unbekannt",
                     DurationInSeconds = durationInSeconds,
-                    Points = currentClimb.Select(vec => new SerializableVector3(vec)).ToList(),
+                    Points = currentClimb,
                     AscentLevel = Ascents.currentAscent,
                 };
 
@@ -105,7 +104,7 @@ namespace FollowMePeak.Managers
                 var camera = Camera.main;
                 if (camera != null)
                     _currentRecordedClimb.Add(camera.transform.position);
-                yield return new WaitForSeconds(2.0f);
+                yield return new WaitForSeconds(0.5f);
             }
         }
     }

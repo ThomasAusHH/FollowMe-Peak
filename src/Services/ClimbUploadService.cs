@@ -288,7 +288,7 @@ namespace FollowMePeak.Services
                 if (File.Exists(_queueFilePath))
                 {
                     string json = File.ReadAllText(_queueFilePath);
-                    _uploadQueue = JsonConvert.DeserializeObject<List<UploadQueueItem>>(json) ?? new List<UploadQueueItem>();
+                    _uploadQueue = JsonConvert.DeserializeObject<List<UploadQueueItem>>(json, CommonJsonSettings.Default) ?? new List<UploadQueueItem>();
                     
                     // Remove any items with null ClimbData (from old PathData format)
                     _uploadQueue.RemoveAll(item => item.ClimbData == null);

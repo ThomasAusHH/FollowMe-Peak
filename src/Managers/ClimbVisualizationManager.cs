@@ -81,7 +81,7 @@ namespace FollowMePeak.Managers
 
         private void CreateClimbVisualizer(ClimbData climbData)
         {
-            List<Vector3> points = climbData.Points.Select(p => p.ToVector3()).ToList();
+            List<Vector3> points = climbData.Points;
             if (points.Count < 2) return;
 
             var climbObject = new GameObject($"ClimbVisualizer_{climbData.Id}");

@@ -29,7 +29,7 @@ namespace FollowMePeak.Services
                 if (File.Exists(_configPath))
                 {
                     string json = File.ReadAllText(_configPath);
-                    _config = JsonConvert.DeserializeObject<ServerConfig>(json);
+                    _config = JsonConvert.DeserializeObject<ServerConfig>(json, CommonJsonSettings.Default);
                     _logger.LogInfo("Server configuration loaded successfully");
                 }
                 else

@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using FollowMePeak.Utils;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace FollowMePeak.Models
 {
+    [JsonConverter(typeof(ClimbDataConverter))]
     public class ClimbData
     {
         public Guid Id { get; set; }
         public DateTime CreationTime { get; set; }
         public string BiomeName { get; set; }
         public float DurationInSeconds { get; set; }
-        public List<SerializableVector3> Points { get; set; }
+        public List<Vector3> Points { get; set; }
         
         // Extended properties for sharing and identification
         public string SaveName { get; set; } = "";
@@ -97,24 +101,114 @@ namespace FollowMePeak.Models
     }
     */
 
-    public struct SerializableVector3
+    public class ClimbDataConverter : JsonConverter<ClimbData>
     {
-        public float X, Y, Z;
-        public SerializableVector3(Vector3 vec) { X = vec.x; Y = vec.y; Z = vec.z; }
-        public Vector3 ToVector3() { return new Vector3(X, Y, Z); }
-        
-        // Convert to API format (lowercase for server compatibility)
-        public ApiVector3 ToApiVector3() { return new ApiVector3 { x = X, y = Y, z = Z }; }
-    }
+        public override void WriteJson(JsonWriter writer, ClimbData value, JsonSerializer serializer)
+        {
+            writer.WriteStartObject();
 
-    // API-compatible vector structure (lowercase for server)
-    public struct ApiVector3
-    {
-        public float x, y, z;
-        
-        public ApiVector3(Vector3 vec) { x = vec.x; y = vec.y; z = vec.z; }
-        public ApiVector3(SerializableVector3 vec) { x = vec.X; y = vec.Y; z = vec.Z; }
-        public Vector3 ToVector3() { return new Vector3(x, y, z); }
-        public SerializableVector3 ToSerializableVector3() { return new SerializableVector3 { X = x, Y = y, Z = z }; }
+            writer.WritePropertyName("Id");
+            serializer.Serialize(writer, value.Id);
+
+            writer.WritePropertyName("CreationTime");
+            serializer.Serialize(writer, value.CreationTime);
+
+            writer.WritePropertyName("BiomeName");
+            writer.WriteValue(value.BiomeName);
+
+            writer.WritePropertyName("DurationInSeconds");
+            writer.WriteValue(value.DurationInSeconds);
+
+            writer.WritePropertyName("PointData");
+            using (MemoryStream stream = new())
+            {
+                ClimbDataCrusher.WriteClimbData(stream, value);
+                writer.WriteValue(Convert.ToBase64String(stream.ToArray()));
+            }
+
+            writer.WritePropertyName("SaveName");
+            writer.WriteValue(value.SaveName);
+
+            writer.WritePropertyName("PlayerName");
+            writer.WriteValue(value.PlayerName);
+
+            writer.WritePropertyName("IsFromCloud");
+            writer.WriteValue(value.IsFromCloud);
+
+            writer.WritePropertyName("ShareCode");
+            writer.WriteValue(value.ShareCode);
+
+            /*
+            // Tags property (disabled for now)
+            writer.WritePropertyName("Tags");
+            serializer.Serialize(writer, value.Tags);
+            */
+
+            writer.WriteEndObject();
+        }
+
+        public override ClimbData ReadJson(JsonReader reader, Type objectType, ClimbData existingValue, bool hasExistingValue,
+            JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null)
+                return null;
+
+            var climbData = new ClimbData();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.EndObject)
+                    break;
+
+                if (reader.TokenType == JsonToken.PropertyName)
+                {
+                    string propertyName = (string)reader.Value;
+                    reader.Read();
+
+                    switch (propertyName)
+                    {
+                        case "Id":
+                            climbData.Id = serializer.Deserialize<Guid>(reader);
+                            break;
+                        case "CreationTime":
+                            climbData.CreationTime = serializer.Deserialize<DateTime>(reader);
+                            break;
+                        case "BiomeName":
+                            climbData.BiomeName = serializer.Deserialize<string>(reader);
+                            break;
+                        case "DurationInSeconds":
+                            climbData.DurationInSeconds = serializer.Deserialize<float>(reader);
+                            break;
+                        case "Points":
+                            climbData.Points = serializer.Deserialize<List<Vector3>>(reader);
+                            break;
+                        case "PointData":
+                        {
+                            if (reader.Value is string value)
+                                ClimbDataCrusher.ReadClimbData(Convert.FromBase64String(value), climbData);
+                            break;
+                        }
+                        case "SaveName":
+                            climbData.SaveName = serializer.Deserialize<string>(reader);
+                            break;
+                        case "PlayerName":
+                            climbData.PlayerName = serializer.Deserialize<string>(reader);
+                            break;
+                        case "IsFromCloud":
+                            climbData.IsFromCloud = serializer.Deserialize<bool>(reader);
+                            break;
+                        case "ShareCode":
+                            climbData.ShareCode = serializer.Deserialize<string>(reader);
+                            break;
+                        /*
+                        // Tags property (disabled for now)
+                        case "Tags":
+                            climbData.Tags = serializer.Deserialize<List<string>>(reader);
+                            break;
+                        */
+                    }
+                }
+            }
+            return climbData;
+        }
     }
 }

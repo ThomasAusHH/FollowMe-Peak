@@ -51,7 +51,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<HealthResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<HealthResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         IsServerReachable = response.Status == "healthy";
                         
                         if (IsServerReachable)
@@ -115,30 +115,58 @@ namespace FollowMePeak.Services
             
             string url = $"{_config.BaseUrl}/api/climbs";
             
-            // Convert ClimbData to server format and reduce points if necessary
-            var apiPoints = climbData.Points.Select(p => p.ToApiVector3()).ToList();
-            apiPoints = ReducePointsIfNeeded(apiPoints);
-            
             int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
             _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
             
-            var uploadData = new
+            string json;
+            
+            // Use compressed format if enabled (you can add a config option for this)
+            bool useCompression = _config.UseCompressedFormat ?? true;
+            
+            if (useCompression)
             {
-                levelId = levelId,
-                playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
-                biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
-                duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
-                points = apiPoints,
-                isSuccessful = true, // Will be determined by validation logic
-                tags = new string[] { }, // Can be extended later
-                ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
-            };
-
-            string json = JsonConvert.SerializeObject(uploadData, Formatting.None, new JsonSerializerSettings
+                // Compress points before upload
+                var compressedData = new System.IO.MemoryStream();
+                Utils.ClimbDataCrusher.WriteClimbData(compressedData, climbData);
+                var compressedBytes = compressedData.ToArray();
+                
+                var uploadData = new
+                {
+                    levelId = levelId,
+                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                    pointData = Convert.ToBase64String(compressedBytes),
+                    compressionVersion = 1,
+                    isSuccessful = true, // Will be determined by validation logic
+                    tags = new string[] { }, // Can be extended later
+                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
+                };
+                
+                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+                _logger.LogInfo($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
+            }
+            else
             {
-                NullValueHandling = NullValueHandling.Include,
-                DefaultValueHandling = DefaultValueHandling.Include
-            });
+                // Legacy format - convert ClimbData to server format and reduce points if necessary
+                var apiPoints = climbData.Points;
+                apiPoints = ReducePointsIfNeeded(apiPoints);
+                
+                var uploadData = new
+                {
+                    levelId = levelId,
+                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                    points = apiPoints,
+                    isSuccessful = true, // Will be determined by validation logic
+                    tags = new string[] { }, // Can be extended later
+                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
+                };
+                
+                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+                _logger.LogInfo($"Using legacy upload format. Points: {apiPoints.Count}");
+            }
             
             // Find ascentLevel in JSON for debugging
             int ascentIndex = json.IndexOf("\"ascentLevel\":");
@@ -180,7 +208,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text, CommonJsonSettings.Default);
                         
                         if (response.Success)
                         {
@@ -246,6 +274,12 @@ namespace FollowMePeak.Services
             
             urlBuilder.Append($"&sort_by={sortBy}&sort_order={sortOrder}");
             
+            // Request compressed format if enabled
+            if (_config.UseCompressedFormat ?? true)
+            {
+                urlBuilder.Append("&format=compressed");
+            }
+            
             string url = urlBuilder.ToString();
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
@@ -259,14 +293,22 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ClimbListResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ClimbListResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         var climbs = new List<ClimbData>();
                         
                         if (response.Data != null)
                         {
                             foreach (var serverClimb in response.Data)
                             {
-                                climbs.Add(serverClimb.ToClimbData());
+                                var climbData = serverClimb.ToClimbData();
+                                
+                                // Debug logging for compressed format
+                                if (!string.IsNullOrEmpty(serverClimb.PointData))
+                                {
+                                    _logger.LogInfo($"Processing compressed climb {serverClimb.Id}: PointData length={serverClimb.PointData.Length}, Points count={climbData.Points?.Count ?? 0}");
+                                }
+                                
+                                climbs.Add(climbData);
                             }
                         }
                         
@@ -319,6 +361,12 @@ namespace FollowMePeak.Services
         {
             string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode}";
             
+            // Request compressed format if enabled
+            if (_config.UseCompressedFormat ?? true)
+            {
+                url += "?format=compressed";
+            }
+            
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 request.timeout = _config.TimeoutSeconds;
@@ -330,7 +378,7 @@ namespace FollowMePeak.Services
                 {
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<ClimbSearchResponse>(request.downloadHandler.text);
+                        var response = JsonConvert.DeserializeObject<ClimbSearchResponse>(request.downloadHandler.text, CommonJsonSettings.Default);
                         
                         if (response.Success && response.Data != null)
                         {
@@ -404,9 +452,9 @@ namespace FollowMePeak.Services
         }
 
         // Helper method to reduce points if path is too complex
-        private List<ApiVector3> ReducePointsIfNeeded(List<ApiVector3> points)
+        private List<Vector3> ReducePointsIfNeeded(List<Vector3> points)
         {
-            const int maxPoints = 2000; // Reasonable limit for most paths
+            const int maxPoints = 8000; // Reasonable limit for most paths
             
             if (points.Count <= maxPoints)
                 return points;
@@ -414,7 +462,7 @@ namespace FollowMePeak.Services
             _logger.LogWarning($"Path has {points.Count} points, reducing to {maxPoints} for upload");
 
             // Use simple decimation - take every nth point to reduce complexity
-            var reducedPoints = new List<ApiVector3>();
+            var reducedPoints = new List<Vector3>();
             float step = (float)points.Count / maxPoints;
             
             for (int i = 0; i < maxPoints; i++)
