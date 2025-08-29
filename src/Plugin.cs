@@ -261,8 +261,9 @@ namespace FollowMePeak
             }
         }
 
-        public void OnCampfireLit(string biomeName)
+        public void OnClimbSegmentComplete(string biomeName)
         {
+            Logger.LogInfo($"Climb segment in {_climbDataService.CurrentLevelID} {biomeName} complete; saving.");
             _recordingManager.SaveCurrentClimb(biomeName);
             _recordingManager.StartRecording();
         }

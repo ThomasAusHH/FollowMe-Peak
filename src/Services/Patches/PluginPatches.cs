@@ -27,8 +27,17 @@ namespace FollowMePeak.Patches
         {
             if(Plugin.Instance != null)
             {
-                Debug.Log("[FollowMe-Peak] Campfire.Light_Rpc() completed. Saving triggered.");
-                Plugin.Instance.OnCampfireLit(BiomeNameOfCompletedSegment);
+                Plugin.Instance.OnClimbSegmentComplete(BiomeNameOfCompletedSegment);
+            }
+        }
+
+        [HarmonyPatch(typeof(PeakHandler), nameof(PeakHandler.SummonHelicopter))]
+        [HarmonyPostfix]
+        public static void SavePathAfterHelicopterSummoned()
+        {
+            if (Plugin.Instance != null)
+            {
+                Plugin.Instance.OnClimbSegmentComplete(BiomeNameOfCompletedSegment);
             }
         }
     }
