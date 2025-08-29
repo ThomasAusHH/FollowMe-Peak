@@ -42,6 +42,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             SetBiomeIcon(newItem, climb.BiomeName);
             SetClimbInfo(newItem, climb);
             SetupVisibilityToggle(newItem, climb, onVisibilityChanged, isVisible);
+            SetupCopyButton(newItem, climb);
             
             _activeItems.Add(newItem);
             return newItem;
@@ -109,6 +110,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             var ascentText = item.transform.Find("ClimbAscent")?.GetComponent<TextMeshProUGUI>();
             if (ascentText != null)
                 ascentText.text = climb.AscentLevel.ToString();
+            
+            // Set share code
+            var shareCodeText = item.transform.Find("ClimbShareCode")?.GetComponent<TextMeshProUGUI>();
+            if (shareCodeText != null)
+            {
+                // Ensure share code is generated
+                if (string.IsNullOrEmpty(climb.ShareCode))
+                    climb.GenerateShareCode();
+                shareCodeText.text = climb.ShareCode ?? "";
+            }
         }
         
         private void SetupVisibilityToggle(GameObject item, ClimbData climb, 
@@ -125,6 +136,31 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                 toggle.onValueChanged.AddListener((bool value) => {
                     onVisibilityChanged?.Invoke(climb, value);
                 });
+            }
+        }
+        
+        private void SetupCopyButton(GameObject item, ClimbData climb)
+        {
+            var copyButton = item.transform.Find("ClimbShareCodeCopyButton")?.GetComponent<Button>();
+            if (copyButton != null)
+            {
+                // Ensure share code is generated
+                if (string.IsNullOrEmpty(climb.ShareCode))
+                    climb.GenerateShareCode();
+                
+                if (!string.IsNullOrEmpty(climb.ShareCode))
+                {
+                    copyButton.onClick.RemoveAllListeners();
+                    copyButton.onClick.AddListener(() => {
+                        GUIUtility.systemCopyBuffer = climb.ShareCode;
+                        Debug.Log($"[ClimbListItem] Copied share code: {climb.ShareCode}");
+                    });
+                    copyButton.gameObject.SetActive(true);
+                }
+                else
+                {
+                    copyButton.gameObject.SetActive(false);
+                }
             }
         }
     }

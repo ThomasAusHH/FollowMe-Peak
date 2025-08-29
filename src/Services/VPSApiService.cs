@@ -239,7 +239,7 @@ namespace FollowMePeak.Services
 
         // Download Climbs for Level
         public void DownloadClimbs(string levelId, System.Action<List<ClimbData>, string, ClimbListMeta> callback, int limit = 10, int offset = 0, 
-            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc")
+            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc", int? ascentLevel = null)
         {
             if (!_config.EnableCloudSync)
             {
@@ -247,11 +247,11 @@ namespace FollowMePeak.Services
                 return;
             }
 
-            _coroutineRunner.StartCoroutine(DownloadClimbsCoroutine(levelId, callback, limit, offset, playerName, biomeName, peakCode, sortBy, sortOrder));
+            _coroutineRunner.StartCoroutine(DownloadClimbsCoroutine(levelId, callback, limit, offset, playerName, biomeName, peakCode, sortBy, sortOrder, ascentLevel));
         }
 
         private IEnumerator DownloadClimbsCoroutine(string levelId, System.Action<List<ClimbData>, string, ClimbListMeta> callback, int limit = 10, int offset = 0,
-            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc")
+            string playerName = "", string biomeName = "", string peakCode = "", string sortBy = "created_at", string sortOrder = "desc", int? ascentLevel = null)
         {
             // Input validation
             if (!InputValidator.IsValidLevelId(levelId))
@@ -271,6 +271,9 @@ namespace FollowMePeak.Services
             
             if (!string.IsNullOrEmpty(peakCode))
                 urlBuilder.Append($"&peak_code={UnityEngine.Networking.UnityWebRequest.EscapeURL(peakCode)}");
+            
+            if (ascentLevel.HasValue)
+                urlBuilder.Append($"&ascent_level={ascentLevel.Value}");
             
             urlBuilder.Append($"&sort_by={sortBy}&sort_order={sortOrder}");
             

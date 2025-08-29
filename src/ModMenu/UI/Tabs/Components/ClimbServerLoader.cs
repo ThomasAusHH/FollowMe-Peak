@@ -14,6 +14,10 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         private bool _hasLoadedForCurrentLevel = false;
         private string _lastLoadedLevel = "";
         private string _lastBiomeFilter = "";
+        private int? _lastAscentFilter = null;
+        private string _lastPeakCodeFilter = "";
+        private string _lastSortBy = "created_at";     // Default
+        private string _lastSortOrder = "desc";        // Default
         private bool _isLoading = false;
         private List<ClimbData> _currentPageClimbs = new List<ClimbData>();
         
@@ -23,6 +27,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         
         public List<ClimbData> CurrentPageClimbs => _currentPageClimbs;
         public bool IsLoading => _isLoading;
+        public string LastPeakCodeFilter => _lastPeakCodeFilter;
         
         public ClimbServerLoader(VPSApiService apiService, ClimbDataService climbDataService)
         {
@@ -30,7 +35,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             _climbDataService = climbDataService;
         }
         
-        public void CheckAndLoadInitialData(string biomeFilter = "")
+        public void CheckAndLoadInitialData(string biomeFilter = "", int? ascentFilter = null, string peakCodeFilter = "")
         {
             // Check if we have a valid level ID (this is more reliable than scene name)
             string levelId = _climbDataService?.CurrentLevelID;
@@ -42,17 +47,20 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             }
             
             // Check if we already loaded for this level and filter combination
-            if (_hasLoadedForCurrentLevel && _lastLoadedLevel == levelId && _lastBiomeFilter == biomeFilter)
+            if (_hasLoadedForCurrentLevel && _lastLoadedLevel == levelId && 
+                _lastBiomeFilter == biomeFilter && _lastAscentFilter == ascentFilter &&
+                _lastPeakCodeFilter == peakCodeFilter)
             {
-                Debug.Log($"[ClimbServerLoader] Already loaded climbs for {levelId} with filter '{biomeFilter}'");
+                Debug.Log($"[ClimbServerLoader] Already loaded climbs for {levelId} with filters");
                 return;
             }
             
             // Load climbs from server
-            LoadClimbsFromServer(levelId, biomeFilter);
+            LoadClimbsFromServer(levelId, biomeFilter, ascentFilter, peakCodeFilter);
         }
         
-        private void LoadClimbsFromServer(string levelId, string biomeFilter = "")
+        private void LoadClimbsFromServer(string levelId, string biomeFilter = "", int? ascentFilter = null, 
+            string peakCodeFilter = "", string sortBy = "created_at", string sortOrder = "desc")
         {
             if (_isLoading)
             {
@@ -75,7 +83,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             }
             
             _isLoading = true;
-            Debug.Log($"[ClimbServerLoader] Loading climbs from server for level: {levelId}, biome filter: '{biomeFilter}'");
+            Debug.Log($"[ClimbServerLoader] Loading climbs - Level: {levelId}, Biome: '{biomeFilter}', Ascent: '{ascentFilter}', Peak: '{peakCodeFilter}', Sort: {sortBy} {sortOrder}");
             
             // Clear previous server climbs
             _currentPageClimbs.Clear();
@@ -112,6 +120,10 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     _hasLoadedForCurrentLevel = true;
                     _lastLoadedLevel = levelId;
                     _lastBiomeFilter = biomeFilter;
+                    _lastAscentFilter = ascentFilter;
+                    _lastPeakCodeFilter = peakCodeFilter;
+                    _lastSortBy = sortBy;
+                    _lastSortOrder = sortOrder;
                     
                     // Save climbs locally
                     _climbDataService.SaveClimbsToFile(false);
@@ -136,7 +148,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     Debug.LogError($"[ClimbServerLoader] {errorMsg}");
                     OnLoadError?.Invoke(errorMsg);
                 }
-            }, 25, 0, "", biomeFilter, "", "created_at", "desc");
+            }, 25, 0, "", biomeFilter, peakCodeFilter, sortBy, sortOrder, ascentFilter);
         }
         
         
@@ -145,6 +157,10 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             _hasLoadedForCurrentLevel = false;
             _lastLoadedLevel = "";
             _lastBiomeFilter = "";
+            _lastAscentFilter = null;
+            _lastPeakCodeFilter = "";
+            _lastSortBy = "created_at";      // Reset to default
+            _lastSortOrder = "desc";          // Reset to default
             _isLoading = false;
             _currentPageClimbs.Clear();
         }
@@ -170,7 +186,86 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             
             // Force reload by resetting the cached filter
             _hasLoadedForCurrentLevel = false;
-            LoadClimbsFromServer(levelId, biomeFilter);
+            // Keep current sorting when biome filter changes
+            LoadClimbsFromServer(levelId, biomeFilter, _lastAscentFilter, _lastPeakCodeFilter, _lastSortBy, _lastSortOrder);
+        }
+        
+        // Force reload with combined filters
+        public void ReloadWithFilters(string biomeFilter, int? ascentLevel)
+        {
+            Debug.Log($"[ClimbServerLoader] Reloading - Biome: '{biomeFilter}', Ascent: {ascentLevel}");
+            
+            string levelId = _climbDataService?.CurrentLevelID;
+            if (string.IsNullOrEmpty(levelId) || levelId.Contains("_unknown") || levelId.Contains("placeholder"))
+            {
+                Debug.Log($"[ClimbServerLoader] Not in a valid level, skipping reload");
+                return;
+            }
+            
+            // Force reload by resetting the cached filter
+            _hasLoadedForCurrentLevel = false;
+            _lastBiomeFilter = biomeFilter;
+            _lastAscentFilter = ascentLevel;
+            // Keep current sorting when filters change
+            LoadClimbsFromServer(levelId, biomeFilter, ascentLevel, _lastPeakCodeFilter, _lastSortBy, _lastSortOrder);
+        }
+        
+        // Force reload with all filters
+        public void ReloadWithAllFilters(string biomeFilter, int? ascentLevel, string peakCode)
+        {
+            Debug.Log($"[ClimbServerLoader] Reloading - Biome: '{biomeFilter}', Ascent: {ascentLevel}, PeakCode: '{peakCode}'");
+            
+            string levelId = _climbDataService?.CurrentLevelID;
+            if (string.IsNullOrEmpty(levelId) || levelId.Contains("_unknown") || levelId.Contains("placeholder"))
+            {
+                Debug.Log($"[ClimbServerLoader] Not in a valid level, skipping reload");
+                return;
+            }
+            
+            // Force reload by resetting the cached filter
+            _hasLoadedForCurrentLevel = false;
+            _lastBiomeFilter = biomeFilter;
+            _lastAscentFilter = ascentLevel;
+            _lastPeakCodeFilter = peakCode;
+            // Keep current sorting when filters change
+            LoadClimbsFromServer(levelId, biomeFilter, ascentLevel, peakCode, _lastSortBy, _lastSortOrder);
+        }
+        
+        // Apply duration sorting
+        public void ApplyDurationSorting(bool ascending)
+        {
+            string sortOrder = ascending ? "asc" : "desc";
+            Debug.Log($"[ClimbServerLoader] Applying duration sorting: {sortOrder}");
+            
+            string levelId = _climbDataService?.CurrentLevelID;
+            if (string.IsNullOrEmpty(levelId) || levelId.Contains("_unknown") || levelId.Contains("placeholder"))
+            {
+                Debug.Log($"[ClimbServerLoader] Not in valid level, skipping sorting");
+                return;
+            }
+            
+            // Only change to duration sorting, keep all other filters
+            _hasLoadedForCurrentLevel = false;
+            LoadClimbsFromServer(levelId, _lastBiomeFilter, _lastAscentFilter, 
+                _lastPeakCodeFilter, "duration", sortOrder);
+        }
+        
+        // Reset to default sorting
+        public void ResetToDefaultSorting()
+        {
+            Debug.Log($"[ClimbServerLoader] Resetting to default sorting (created_at desc)");
+            
+            string levelId = _climbDataService?.CurrentLevelID;
+            if (string.IsNullOrEmpty(levelId) || levelId.Contains("_unknown") || levelId.Contains("placeholder"))
+            {
+                return;
+            }
+            
+            // Clear the peak code filter when resetting to defaults
+            _lastPeakCodeFilter = "";
+            _hasLoadedForCurrentLevel = false;
+            LoadClimbsFromServer(levelId, _lastBiomeFilter, _lastAscentFilter, 
+                "", "created_at", "desc");
         }
     }
 }
