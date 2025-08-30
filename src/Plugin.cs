@@ -171,7 +171,6 @@ namespace FollowMePeak
             if (scene.name.StartsWith("Level_"))
             {
                 StartCoroutine(InitializePathSystem(scene));
-                _recordingManager.StartRecording();
             }
             else
             {
@@ -261,10 +260,15 @@ namespace FollowMePeak
             }
         }
 
-        public void OnCampfireLit(string biomeName)
+        public void OnClimbSegmentComplete()
         {
-            _recordingManager.SaveCurrentClimb(biomeName);
-            _recordingManager.StartRecording();
+            _recordingManager.SaveCurrentClimb();
+        }
+
+        public void OnNextClimbSegment(string nextBiomeName)
+        {
+            OnClimbSegmentComplete();
+            _recordingManager.StartRecording(nextBiomeName);
         }
         
         // Method to show tag selection for newly created climbs - DISABLED FOR NOW
