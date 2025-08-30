@@ -82,6 +82,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\libs\modui" />
+
   </ItemGroup>
 
 </Project>

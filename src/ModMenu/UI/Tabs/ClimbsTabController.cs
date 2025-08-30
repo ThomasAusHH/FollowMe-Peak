@@ -25,14 +25,15 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private Toggle _durationSortingToggle;
         private Transform _scrollViewport;
         private ScrollRect _scrollRect;
+        private Transform _contentParent; // Das Content-Objekt der ScrollView
+        private GameObject _climbContentPrefab; // Das neue Prefab
         private GameObject _infoBox;
         private GameObject _notOnIslandNotification;
         private GameObject _noClimbAvailableNotification;
         private GameObject _notOnIslandNotificationBackgroundImage;
         private GameObject _noClimbAvailableNotificationBackgroundImage;
         
-        // Components
-        private ClimbListItemManager _itemManager;
+        // Components (ClimbListItemManager removed - now using prefab system)
         private ClimbFilterManager _filterManager;
         private ClimbSearchManager _searchManager;
         private ClimbServerLoader _serverLoader;
@@ -181,23 +182,47 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 return;
             }
             
-            // Find template
-            Transform template = _scrollViewport.Find("ClimbsScrollContent");
-            if (template == null)
-                template = _scrollViewport.Find("ClimbScrollContent");
+            // Find ClimbScrollContent object (where items will be added)
+            _contentParent = _scrollViewport.Find("ClimbScrollContent");
+            if (_contentParent == null)
+            {
+                Debug.LogError("[ClimbsTab] ClimbScrollContent object not found in viewport!");
+                return;
+            }
             
-            if (template != null)
-            {
-                template.gameObject.SetActive(false);
-                _itemManager = new ClimbListItemManager(template.gameObject, _scrollViewport);
-                Debug.Log("[ClimbsTab] Template found and item manager initialized");
-            }
-            else
-            {
-                Debug.LogError("[ClimbsTab] Template not found in viewport!");
-            }
+            // Load the climb content prefab from libs
+            LoadClimbContentPrefab();
             
             SetupScrollRect(scrollView);
+        }
+        
+        private void LoadClimbContentPrefab()
+        {
+            try
+            {
+                // Load the prefab from the libs folder
+                var assetBundleService = AssetBundleService.Instance;
+                if (assetBundleService != null && assetBundleService.IsLoaded)
+                {
+                    _climbContentPrefab = assetBundleService.GetPrefab("climbscrollcontent");
+                    if (_climbContentPrefab != null)
+                    {
+                        Debug.Log("[ClimbsTab] ClimbScrollContent prefab loaded successfully");
+                    }
+                    else
+                    {
+                        Debug.LogError("[ClimbsTab] ClimbScrollContent prefab not found in AssetBundle");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[ClimbsTab] AssetBundleService not available");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[ClimbsTab] Error loading ClimbScrollContent prefab: {ex.Message}");
+            }
         }
         
         // Helper method to get full path of a transform
@@ -217,40 +242,71 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         {
             _scrollRect = scrollView.GetComponent<ScrollRect>();
             if (_scrollRect == null)
-                _scrollRect = scrollView.gameObject.AddComponent<ScrollRect>();
+            {
+                Debug.LogError("[ClimbsTab] ScrollRect component missing on ScrollView!");
+                return;
+            }
             
-            // Configure ScrollRect
-            _scrollRect.content = _scrollViewport.GetComponent<RectTransform>();
-            _scrollRect.viewport = _scrollViewport.GetComponent<RectTransform>();
-            _scrollRect.horizontal = false;
-            _scrollRect.vertical = true;
-            _scrollRect.scrollSensitivity = 30f;
-            _scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            // Ensure ScrollRect points to our ClimbScrollContent object
+            if (_contentParent != null)
+            {
+                _scrollRect.content = _contentParent.GetComponent<RectTransform>();
+                Debug.Log("[ClimbsTab] ScrollRect content set to ClimbScrollContent object");
+            }
             
-            // Setup layout
-            var layoutGroup = _scrollViewport.GetComponent<VerticalLayoutGroup>();
-            if (layoutGroup == null)
-                layoutGroup = _scrollViewport.gameObject.AddComponent<VerticalLayoutGroup>();
+            // Set scroll sensitivity for faster scrolling
+            _scrollRect.scrollSensitivity = 5f; // Default is 1, higher = faster
+            Debug.Log($"[ClimbsTab] ScrollRect sensitivity set to: {_scrollRect.scrollSensitivity}");
             
-            layoutGroup.spacing = 10f;
-            layoutGroup.childControlHeight = false;
-            layoutGroup.childControlWidth = true;
-            layoutGroup.childForceExpandHeight = false;
-            layoutGroup.childForceExpandWidth = true;
-            layoutGroup.padding = new RectOffset(10, 10, 10, 10);
-            
-            // Setup ContentSizeFitter
-            var sizeFitter = _scrollViewport.GetComponent<ContentSizeFitter>();
-            if (sizeFitter == null)
-                sizeFitter = _scrollViewport.gameObject.AddComponent<ContentSizeFitter>();
-            
-            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            
-            // Add clipping
-            var rectMask = scrollView.GetComponent<RectMask2D>();
-            if (rectMask == null)
-                scrollView.gameObject.AddComponent<RectMask2D>();
+            // Setup layout on the ClimbScrollContent object (where items will be added)
+            if (_contentParent != null)
+            {
+                var layoutGroup = _contentParent.GetComponent<VerticalLayoutGroup>();
+                if (layoutGroup == null)
+                {
+                    layoutGroup = _contentParent.gameObject.AddComponent<VerticalLayoutGroup>();
+                    layoutGroup.spacing = 10f;
+                    layoutGroup.childControlHeight = false;
+                    layoutGroup.childControlWidth = true;
+                    layoutGroup.childForceExpandHeight = false;
+                    layoutGroup.childForceExpandWidth = true;
+                    layoutGroup.padding = new RectOffset(10, 10, 10, 10);
+                    Debug.Log("[ClimbsTab] VerticalLayoutGroup added to Content");
+                }
+                
+                var sizeFitter = _contentParent.GetComponent<ContentSizeFitter>();
+                if (sizeFitter == null)
+                {
+                    sizeFitter = _contentParent.gameObject.AddComponent<ContentSizeFitter>();
+                    sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                    sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                    Debug.Log("[ClimbsTab] ContentSizeFitter added to ClimbScrollContent");
+                }
+                
+                // Make ClimbScrollContent background transparent (both Image and RawImage)
+                var contentImage = _contentParent.GetComponent<UnityEngine.UI.Image>();
+                if (contentImage != null)
+                {
+                    var color = contentImage.color;
+                    color.a = 0f; // Set alpha to 0 (transparent)
+                    contentImage.color = color;
+                    Debug.Log($"[ClimbsTab] ClimbScrollContent Image background set to transparent (alpha: {color.a})");
+                }
+                
+                var contentRawImage = _contentParent.GetComponent<UnityEngine.UI.RawImage>();
+                if (contentRawImage != null)
+                {
+                    var color = contentRawImage.color;
+                    color.a = 0f; // Set alpha to 0 (transparent)
+                    contentRawImage.color = color;
+                    Debug.Log($"[ClimbsTab] ClimbScrollContent RawImage background set to transparent (alpha: {color.a})");
+                }
+                
+                if (contentImage == null && contentRawImage == null)
+                {
+                    Debug.LogWarning("[ClimbsTab] ClimbScrollContent has no Image or RawImage component - cannot set transparency");
+                }
+            }
             
             // Make ScrollView background transparent
             var scrollViewImage = scrollView.GetComponent<UnityEngine.UI.Image>();
@@ -259,7 +315,11 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 var color = scrollViewImage.color;
                 color.a = 0f; // Set alpha to 0 (transparent)
                 scrollViewImage.color = color;
-                Debug.Log("[ClimbsTab] ScrollView background set to transparent");
+                Debug.Log($"[ClimbsTab] ScrollView background set to transparent (alpha: {color.a})");
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] ScrollView Image component not found - cannot set transparency");
             }
         }
         
@@ -562,22 +622,33 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         public void RefreshClimbsList()
         {
-            Debug.Log("[ClimbsTab] Refreshing climbs list");
+            Debug.Log("[ClimbsTab] Refreshing climbs list using prefab system");
             
-            if (_itemManager == null || _climbDataService == null)
+            if (_climbDataService == null)
             {
-                Debug.LogError("[ClimbsTab] Cannot refresh - missing components");
+                Debug.LogError("[ClimbsTab] Cannot refresh - ClimbDataService is null");
+                return;
+            }
+            
+            if (_contentParent == null)
+            {
+                Debug.LogError("[ClimbsTab] Cannot refresh - Content parent is null");
+                return;
+            }
+            
+            if (_climbContentPrefab == null)
+            {
+                Debug.LogError("[ClimbsTab] Cannot refresh - ClimbContent prefab is null");
                 return;
             }
             
             bool isInLevel = IsPlayerInValidLevel();
             
-            _itemManager.ClearAllItems();
+            // Clear existing items from content parent
+            ClearContentItems();
             
             // Get climbs based on mode
             var climbsToDisplay = GetClimbsToDisplay();
-            
-            // Note: Ascent filtering is now done on the server side
             
             // Server climbs are already sorted
             // Only sort local climbs if duration sorting is active
@@ -601,18 +672,176 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             // Update info box notifications
             UpdateInfoBoxNotifications(isInLevel, climbsToDisplay.Count);
             
-            Debug.Log($"[ClimbsTab] Showing {climbsToDisplay.Count} climbs");
+            Debug.Log($"[ClimbsTab] Creating {climbsToDisplay.Count} climb items using prefab system");
             
+            // Create prefab instances for each climb
             foreach (var climb in climbsToDisplay)
             {
-                bool isVisible = _visibleClimbIds.Contains(climb.Id.ToString());
-                _itemManager.CreateClimbItem(climb, OnClimbVisibilityToggled, isVisible);
+                CreateClimbPrefabItem(climb);
             }
             
             // Force layout rebuild
-            if (_scrollViewport != null)
+            if (_contentParent != null)
             {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(_scrollViewport.GetComponent<RectTransform>());
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_contentParent.GetComponent<RectTransform>());
+                Debug.Log("[ClimbsTab] Layout rebuild completed");
+            }
+        }
+        
+        private void ClearContentItems()
+        {
+            if (_contentParent == null) return;
+            
+            // Destroy all child objects in the content parent
+            for (int i = _contentParent.childCount - 1; i >= 0; i--)
+            {
+                var child = _contentParent.GetChild(i);
+                if (child != null)
+                {
+                    GameObject.DestroyImmediate(child.gameObject);
+                }
+            }
+            
+            Debug.Log("[ClimbsTab] Cleared all content items");
+        }
+        
+        private void CreateClimbPrefabItem(ClimbData climb)
+        {
+            try
+            {
+                // Instantiate the prefab
+                GameObject climbItem = GameObject.Instantiate(_climbContentPrefab, _contentParent);
+                
+                if (climbItem == null)
+                {
+                    Debug.LogError("[ClimbsTab] Failed to instantiate climb prefab");
+                    return;
+                }
+                
+                // Set climb data on the prefab
+                // Since ClimbListItemController doesn't exist, use basic data population
+                PopulateBasicClimbData(climbItem, climb);
+                
+                Debug.Log($"[ClimbsTab] Created prefab item for climb {climb.Id}");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[ClimbsTab] Error creating prefab item for climb {climb.Id}: {ex.Message}");
+            }
+        }
+        
+        private void PopulateBasicClimbData(GameObject climbItem, ClimbData climb)
+        {
+            // Use the same logic as ClimbListItemManager to populate the prefab correctly
+            SetBiomeIcon(climbItem, climb.BiomeName);
+            SetClimbInfo(climbItem, climb);
+            SetupVisibilityToggle(climbItem, climb);
+            SetupCopyButton(climbItem, climb);
+            
+            Debug.Log($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s");
+        }
+        
+        private void SetBiomeIcon(GameObject item, string biomeName)
+        {
+            Transform biomeIconArea = item.transform.Find("BiomeIconArea");
+            if (biomeIconArea == null) return;
+            
+            // Hide all icons
+            foreach (Transform child in biomeIconArea)
+            {
+                child.gameObject.SetActive(false);
+            }
+            
+            // Show correct icon
+            string normalizedBiome = biomeName?.ToLower() ?? "";
+            Transform iconToShow = null;
+            
+            if (normalizedBiome.Contains("beach"))
+                iconToShow = biomeIconArea.Find("BeachIcon");
+            else if (normalizedBiome.Contains("tropic"))
+                iconToShow = biomeIconArea.Find("TropicsIcon");
+            else if (normalizedBiome.Contains("alpine") || normalizedBiome.Contains("mesa"))
+                iconToShow = biomeIconArea.Find("AlpineMesaIcon");
+            else if (normalizedBiome.Contains("caldera"))
+                iconToShow = biomeIconArea.Find("CalderaIcon");
+            else
+                iconToShow = biomeIconArea.Find("BeachIcon"); // Default
+            
+            if (iconToShow != null)
+                iconToShow.gameObject.SetActive(true);
+        }
+        
+        private void SetClimbInfo(GameObject item, ClimbData climb)
+        {
+            // Set date
+            var dateText = item.transform.Find("ClimbDate")?.GetComponent<TextMeshProUGUI>();
+            if (dateText != null)
+                dateText.text = climb.CreationTime.ToString("dd.MM.yyyy HH:mm");
+            
+            // Set duration - KORREKTE FORMATIERUNG: mm:ss nicht hh:mm:ss
+            var durationText = item.transform.Find("ClimbDuration")?.GetComponent<TextMeshProUGUI>();
+            if (durationText != null)
+            {
+                int minutes = Mathf.FloorToInt(climb.DurationInSeconds / 60f);
+                int seconds = Mathf.FloorToInt(climb.DurationInSeconds % 60f);
+                durationText.text = $"{minutes:00}:{seconds:00}";
+            }
+            
+            // Set ascent level
+            var ascentText = item.transform.Find("ClimbAscent")?.GetComponent<TextMeshProUGUI>();
+            if (ascentText != null)
+                ascentText.text = climb.AscentLevel.ToString();
+            
+            // Set share code
+            var shareCodeText = item.transform.Find("ClimbShareCode")?.GetComponent<TextMeshProUGUI>();
+            if (shareCodeText != null)
+            {
+                // Ensure share code is generated
+                if (string.IsNullOrEmpty(climb.ShareCode))
+                    climb.GenerateShareCode();
+                shareCodeText.text = climb.ShareCode ?? "";
+            }
+        }
+        
+        private void SetupVisibilityToggle(GameObject item, ClimbData climb)
+        {
+            Transform visToggle = item.transform.Find("ClimbVisibilityToggle");
+            if (visToggle == null) return;
+            
+            Toggle toggle = visToggle.GetComponent<Toggle>();
+            if (toggle != null)
+            {
+                bool isVisible = _visibleClimbIds.Contains(climb.Id.ToString());
+                toggle.isOn = isVisible;
+                toggle.onValueChanged.RemoveAllListeners();
+                toggle.onValueChanged.AddListener((bool value) => {
+                    OnClimbVisibilityToggled(climb, value);
+                });
+            }
+        }
+        
+        private void SetupCopyButton(GameObject item, ClimbData climb)
+        {
+            var copyButton = item.transform.Find("ClimbShareCodeCopyButton")?.GetComponent<Button>();
+            if (copyButton != null)
+            {
+                // Ensure share code is generated
+                if (string.IsNullOrEmpty(climb.ShareCode))
+                    climb.GenerateShareCode();
+                
+                if (!string.IsNullOrEmpty(climb.ShareCode))
+                {
+                    copyButton.onClick.RemoveAllListeners();
+                    copyButton.onClick.AddListener(() => {
+                        GUIUtility.systemCopyBuffer = climb.ShareCode;
+                        Debug.Log($"[ClimbsTab] Copied share code: {climb.ShareCode}");
+                    });
+                    copyButton.gameObject.SetActive(true);
+                }
+                else
+                {
+                    copyButton.gameObject.SetActive(false);
+                }
             }
         }
         
@@ -853,7 +1082,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 _serverLoader.OnPaginationUpdated -= OnPaginationUpdated;
             }
             
-            _itemManager?.ClearAllItems();
+            // Clear content items using prefab system
+            ClearContentItems();
         }
     }
 }
