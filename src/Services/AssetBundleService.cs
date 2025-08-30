@@ -65,7 +65,7 @@ namespace FollowMePeak.Services
 
                 var assembly = Assembly.GetExecutingAssembly();
 
-                string resourceName = "PeakClimbfinder.modui";
+                string resourceName = "FollowMePeak.modui";
 
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 {
