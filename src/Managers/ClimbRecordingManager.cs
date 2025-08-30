@@ -8,44 +8,40 @@ using FollowMePeak.Services;
 
 namespace FollowMePeak.Managers
 {
-    public class ClimbRecordingManager
+    public class ClimbRecordingManager(
+        ClimbDataService climbDataService,
+        ManualLogSource logger,
+        MonoBehaviour coroutineRunner)
     {
-        private readonly ClimbDataService _climbDataService;
-        private readonly ManualLogSource _logger;
-        
+        private string _currentBiome = string.Empty;
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
         private float _recordingStartTime;
-        private MonoBehaviour _coroutineRunner;
 
         public bool IsRecording { get; private set; } = false;
-        public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
-        {
-            _climbDataService = climbDataService;
-            _logger = logger;
-            _coroutineRunner = coroutineRunner;
-        }
 
-        public void StartRecording()
+        public void StartRecording(string biomeName)
         {
-            if (IsRecording) return;
+            if (IsRecording && _currentBiome == biomeName) return;
             IsRecording = true;
+            _currentBiome = biomeName ?? "Unknown";
             _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
-            _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
-            _coroutineRunner.StartCoroutine(RecordClimbRoutine());
+            logger.LogInfo($"Kletter-Aufzeichnung gestartet im Biome {biomeName}!");
+            coroutineRunner.StartCoroutine(RecordClimbRoutine());
         }
 
         public void StopRecording()
         {
             if (!IsRecording) return;
             IsRecording = false;
-            _logger.LogInfo($"Aufzeichnung gestoppt. {_currentRecordedClimb.Count} Punkte zwischengespeichert.");
+            logger.LogInfo($"Aufzeichnung gestoppt. {_currentRecordedClimb.Count} Punkte zwischengespeichert.");
         }
 
-        public void SaveCurrentClimb(string biomeName)
+        public void SaveCurrentClimb()
         {
             StopRecording();
 
+            var biome = _currentBiome;
             var currentClimb = _currentRecordedClimb;
             if (currentClimb.Count < 2) return;
 
@@ -64,7 +60,7 @@ namespace FollowMePeak.Managers
                 {
                     Id = Guid.NewGuid(),
                     CreationTime = DateTime.Now,
-                    BiomeName = biomeName ?? "Unbekannt",
+                    BiomeName = biome,
                     DurationInSeconds = durationInSeconds,
                     Points = currentClimb,
                     AscentLevel = Ascents.currentAscent,
@@ -77,10 +73,10 @@ namespace FollowMePeak.Managers
 
             void AfterClimbIsCreated(ClimbData newClimbData)
             {
-                _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
+                logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
 
-                _climbDataService.AddClimb(newClimbData);
-                _climbDataService.SaveClimbsToFile(false);
+                climbDataService.AddClimb(newClimbData);
+                climbDataService.SaveClimbsToFile(false);
             
                 // Show tag selection popup for successful climbs
                 ShowTagSelectionForNewClimb(newClimbData);
@@ -90,7 +86,7 @@ namespace FollowMePeak.Managers
         private void ShowTagSelectionForNewClimb(ClimbData climbData)
         {
             // We'll trigger this through the Plugin to show the tag selection UI
-            _logger.LogInfo($"Neue Kletterroute erstellt: {climbData.GetDisplayName()} (Code: {climbData.ShareCode})");
+            logger.LogInfo($"Neue Kletterroute erstellt: {climbData.GetDisplayName()} (Code: {climbData.ShareCode})");
             
             // Trigger tag selection in the UI
             Plugin.Instance.ShowTagSelectionForNewClimb(climbData);

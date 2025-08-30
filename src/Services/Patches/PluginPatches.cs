@@ -1,33 +1,16 @@
-using System;
 using HarmonyLib;
-using UnityEngine;
-using Zorro.Core;
 
 namespace FollowMePeak.Patches
 {
     public class PluginPatches
     {
-        public static string BiomeNameOfCompletedSegment { get; set; }
-
-        [HarmonyPatch(typeof(Campfire), "Light_Rpc")]
-        [HarmonyPrefix]
-        public static void CaptureBiomeNameBeforeCompletion()
-        {
-            if (Singleton<MapHandler>.Instance != null)
-            {
-                Segment currentSegmentEnum = Singleton<MapHandler>.Instance.GetCurrentSegment();
-                BiomeNameOfCompletedSegment = Enum.GetName(typeof(Segment), currentSegmentEnum);
-                Debug.Log($"[FollowMe-Peak] Biome captured: {BiomeNameOfCompletedSegment}");
-            }
-        }
-
-        [HarmonyPatch(typeof(Campfire), "Light_Rpc")]
+        [HarmonyPatch(typeof(MountainProgressHandler), nameof(MountainProgressHandler.TriggerReached))]
         [HarmonyPostfix]
-        public static void SavePathAfterCampfireLit()
+        public static void StartNewSegment(MountainProgressHandler.ProgressPoint __0)
         {
             if(Plugin.Instance != null)
             {
-                Plugin.Instance.OnClimbSegmentComplete(BiomeNameOfCompletedSegment);
+                Plugin.Instance.OnNextClimbSegment(__0.title);
             }
         }
 
@@ -37,7 +20,7 @@ namespace FollowMePeak.Patches
         {
             if (Plugin.Instance != null)
             {
-                Plugin.Instance.OnClimbSegmentComplete(BiomeNameOfCompletedSegment);
+                Plugin.Instance.OnClimbSegmentComplete();
             }
         }
     }
