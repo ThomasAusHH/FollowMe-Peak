@@ -48,15 +48,24 @@ public struct HalfFloat
         int myExponent = exponent + ExponentBias;
 
         // Round the mantissa
-        uint roundingBit = 1 << (SingleNumMantissaBits - NumMantissaBits - 1);
-        if ((mantissaBits & roundingBit) != 0)
+        if (myExponent == -NumMantissaBits)
         {
-            mantissaBits += roundingBit;
-            if ((mantissaBits & ~SingleMantissaMask) != 0)
+            // Denormal edge case: rounding epsilon/2 <= x < epsilon always rounds to epsilon
+            mantissaBits = 0;
+            myExponent += 1;
+        }
+        else if (myExponent > -NumMantissaBits)
+        {
+            uint roundingBit = 1u << (SingleNumMantissaBits - NumMantissaBits - 1 + Math.Max(0, 1 - myExponent));
+            if ((mantissaBits & roundingBit) != 0)
             {
-                // Rounding overflowed mantissa, increment exponent
-                mantissaBits = 0;
-                myExponent += 1;
+                mantissaBits += roundingBit;
+                if ((mantissaBits & ~SingleMantissaMask) != 0)
+                {
+                    // Rounding overflowed mantissa, increment exponent
+                    mantissaBits = 0;
+                    myExponent += 1;
+                }
             }
         }
 
@@ -241,15 +250,24 @@ public struct QuarterFloat
         int myExponent = exponent + ExponentBias;
 
         // Round the mantissa
-        uint roundingBit = 1 << (SingleNumMantissaBits - NumMantissaBits - 1);
-        if ((mantissaBits & roundingBit) != 0)
+        if (myExponent == -NumMantissaBits)
         {
-            mantissaBits += roundingBit;
-            if ((mantissaBits & ~SingleMantissaMask) != 0)
+            // Denormal edge case: rounding epsilon/2 <= x < epsilon always rounds to epsilon
+            mantissaBits = 0;
+            myExponent += 1;
+        }
+        else if (myExponent > -NumMantissaBits)
+        {
+            uint roundingBit = 1u << (SingleNumMantissaBits - NumMantissaBits - 1 + Math.Max(0, 1 - myExponent));
+            if ((mantissaBits & roundingBit) != 0)
             {
-                // Rounding overflowed mantissa, increment exponent
-                mantissaBits = 0;
-                myExponent += 1;
+                mantissaBits += roundingBit;
+                if ((mantissaBits & ~SingleMantissaMask) != 0)
+                {
+                    // Rounding overflowed mantissa, increment exponent
+                    mantissaBits = 0;
+                    myExponent += 1;
+                }
             }
         }
 
