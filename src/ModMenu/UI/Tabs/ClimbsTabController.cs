@@ -22,6 +22,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private TMP_InputField _climbCodeInput;
         private TMP_InputField _ascentInput;
         private Button _climbCodeSearchButton;
+        private Button _climbVisibilityAllOffButton;
         private Toggle _durationSortingToggle;
         private Transform _scrollViewport;
         private ScrollRect _scrollRect;
@@ -105,6 +106,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 _ascentInput = UIElementFinder.FindComponent<TMP_InputField>(climbCodeSearch, "AscentEnter");
                 _climbCodeSearchButton = UIElementFinder.FindComponent<Button>(climbCodeSearch, "ClimbCodeSearchButton");
                 _durationSortingToggle = UIElementFinder.FindComponent<Toggle>(climbCodeSearch, "DurationSortingToggle");
+                _climbVisibilityAllOffButton = UIElementFinder.FindComponent<Button>(climbCodeSearch, "ClimbVisibilityAllOffButton");
             }
             
             // Find ScrollView elements
@@ -255,7 +257,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
             
             // Set scroll sensitivity for faster scrolling
-            _scrollRect.scrollSensitivity = 5f; // Default is 1, higher = faster
+            _scrollRect.scrollSensitivity = 50f; // Default is 1, higher = faster
             Debug.Log($"[ClimbsTab] ScrollRect sensitivity set to: {_scrollRect.scrollSensitivity}");
             
             // Setup layout on the ClimbScrollContent object (where items will be added)
@@ -329,6 +331,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetupSearchFilters();
             SetupAscentFilter();
             SetupDurationSorting();
+            SetupVisibilityAllOffButton();
             SetupInfoBox();
         }
         
@@ -565,6 +568,38 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
         }
         
+        private void SetupVisibilityAllOffButton()
+        {
+            if (_climbVisibilityAllOffButton != null)
+            {
+                _climbVisibilityAllOffButton.onClick.RemoveAllListeners();
+                _climbVisibilityAllOffButton.onClick.AddListener(() => {
+                    Debug.Log("[ClimbsTab] Visibility All Off - Hiding all climbs");
+                    
+                    // Clear all visible climb IDs
+                    var previousVisibleIds = new List<string>(_visibleClimbIds);
+                    _visibleClimbIds.Clear();
+                    
+                    // Update visualization manager for all previously visible climbs
+                    if (_visualizationManager != null)
+                    {
+                        foreach (var climbId in previousVisibleIds)
+                        {
+                            if (System.Guid.TryParse(climbId, out System.Guid guid))
+                            {
+                                _visualizationManager.SetClimbVisibility(guid, false);
+                            }
+                        }
+                    }
+                    
+                    // Refresh the list to update all toggles
+                    RefreshClimbsList();
+                    
+                    Debug.Log($"[ClimbsTab] All {previousVisibleIds.Count} climbs hidden");
+                });
+            }
+        }
+        
         private void SetupInfoBox()
         {
             Debug.Log("[ClimbsTab] SetupInfoBox - Hiding all notifications initially");
@@ -650,23 +685,38 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             // Get climbs based on mode
             var climbsToDisplay = GetClimbsToDisplay();
             
-            // Server climbs are already sorted
-            // Only sort local climbs if duration sorting is active
+            // Apply sorting: Visible climbs always on top, then apply duration sorting within groups
             if (_isDurationSortingActive)
             {
-                var localClimbs = climbsToDisplay.Where(c => !c.IsFromCloud).ToList();
-                var serverClimbs = climbsToDisplay.Where(c => c.IsFromCloud).ToList();
+                // Split into visible and non-visible groups
+                var visibleClimbs = climbsToDisplay.Where(c => _visibleClimbIds.Contains(c.Id.ToString())).ToList();
+                var nonVisibleClimbs = climbsToDisplay.Where(c => !_visibleClimbIds.Contains(c.Id.ToString())).ToList();
                 
-                if (localClimbs.Any())
+                // Sort ALL visible climbs together by duration (server + local mixed)
+                if (visibleClimbs.Any())
                 {
-                    if (_sortByDurationAscending)
-                        localClimbs = localClimbs.OrderBy(c => c.DurationInSeconds).ToList();
-                    else
-                        localClimbs = localClimbs.OrderByDescending(c => c.DurationInSeconds).ToList();
-                    
-                    // Combine with server climbs (server first, then local)
-                    climbsToDisplay = serverClimbs.Concat(localClimbs).ToList();
+                    visibleClimbs = _sortByDurationAscending 
+                        ? visibleClimbs.OrderBy(c => c.DurationInSeconds).ToList()
+                        : visibleClimbs.OrderByDescending(c => c.DurationInSeconds).ToList();
                 }
+                
+                // Sort ALL non-visible climbs together by duration (server + local mixed)
+                if (nonVisibleClimbs.Any())
+                {
+                    nonVisibleClimbs = _sortByDurationAscending 
+                        ? nonVisibleClimbs.OrderBy(c => c.DurationInSeconds).ToList()
+                        : nonVisibleClimbs.OrderByDescending(c => c.DurationInSeconds).ToList();
+                }
+                
+                // Combine: visible climbs first, then non-visible
+                climbsToDisplay = visibleClimbs.Concat(nonVisibleClimbs).ToList();
+            }
+            else
+            {
+                // Without duration sorting: just sort by visibility
+                var visibleClimbs = climbsToDisplay.Where(c => _visibleClimbIds.Contains(c.Id.ToString())).ToList();
+                var nonVisibleClimbs = climbsToDisplay.Where(c => !_visibleClimbIds.Contains(c.Id.ToString())).ToList();
+                climbsToDisplay = visibleClimbs.Concat(nonVisibleClimbs).ToList();
             }
             
             // Update info box notifications
@@ -737,8 +787,9 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetClimbInfo(climbItem, climb);
             SetupVisibilityToggle(climbItem, climb);
             SetupCopyButton(climbItem, climb);
+            SetOfflineIndicator(climbItem, climb);
             
-            Debug.Log($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s");
+            Debug.Log($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s, IsOffline: {!climb.IsFromCloud}");
         }
         
         private void SetBiomeIcon(GameObject item, string biomeName)
@@ -845,6 +896,28 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
         }
         
+        private void SetOfflineIndicator(GameObject item, ClimbData climb)
+        {
+            // Find the OfflineImage in the prefab item
+            Transform offlineImage = item.transform.Find("OfflineImage");
+            
+            if (offlineImage != null)
+            {
+                // Show image only for local climbs (not from cloud)
+                bool isOffline = !climb.IsFromCloud;
+                offlineImage.gameObject.SetActive(isOffline);
+                
+                if (isOffline)
+                {
+                    Debug.Log($"[ClimbsTab] Showing offline indicator for local climb {climb.Id}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[ClimbsTab] OfflineImage not found in climb item for climb {climb.Id}");
+            }
+        }
+        
         private System.Collections.Generic.List<ClimbData> GetClimbsToDisplay()
         {
             var displayClimbs = new System.Collections.Generic.List<ClimbData>();
@@ -889,6 +962,9 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 _visibleClimbIds.Remove(climb.Id.ToString());
             
             _visualizationManager?.SetClimbVisibility(climb.Id, isVisible);
+            
+            // Refresh list to re-sort with updated visibility
+            RefreshClimbsList();
         }
         
         private void OnClimbFoundFromSearch(ClimbData climb)
@@ -1070,6 +1146,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_ascentInput != null) _ascentInput.onEndEdit.RemoveAllListeners();
             if (_climbCodeInput != null) _climbCodeInput.onEndEdit.RemoveAllListeners();
             if (_durationSortingToggle != null) _durationSortingToggle.onValueChanged.RemoveAllListeners();
+            if (_climbVisibilityAllOffButton != null) _climbVisibilityAllOffButton.onClick.RemoveAllListeners();
             
             // Cleanup components
             if (_searchManager != null)
