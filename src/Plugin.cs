@@ -8,7 +8,6 @@ using Zorro.Core;
 using FollowMePeak.Services;
 using FollowMePeak.Managers;
 using FollowMePeak.Models;
-using FollowMePeak.UI;
 using FollowMePeak.Patches;
 using FollowMePeak.ModMenu;
 
@@ -23,7 +22,6 @@ namespace FollowMePeak
         private ClimbDataService _climbDataService;
         private ClimbRecordingManager _recordingManager;
         private ClimbVisualizationManager _visualizationManager;
-        private FollowMeUI _ui;
         
         // Cloud sync services
         private ServerConfigService _serverConfigService;
@@ -68,10 +66,6 @@ namespace FollowMePeak
             _climbUploadService = new ClimbUploadService(Logger, _vpsApiService, _serverConfigService);
             _climbDownloadService = new ClimbDownloadService(Logger, _vpsApiService, _serverConfigService, _climbDataService);
             
-            // Initialize UI with cloud services
-            _ui = new FollowMeUI(_climbDataService, _visualizationManager, _serverConfigService, 
-                _vpsApiService, _climbUploadService, _climbDownloadService);
-            
             // Initialize Mod Menu with services
             ModMenuManager.ServerConfig = _serverConfigService;
             ModMenuManager.ApiService = _vpsApiService;
@@ -111,10 +105,6 @@ namespace FollowMePeak
             _modMenuManager?.Cleanup();
             _modMenuManager = null;
             
-            // Clean up UI
-            _ui?.Cleanup();
-            _ui = null;
-            
             // Clean up managers
             _visualizationManager?.ClearVisuals();
             _visualizationManager = null;
@@ -150,20 +140,9 @@ namespace FollowMePeak
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                _ui.ShowMenu = !_ui.ShowMenu;
-            }
-            
-            // Mod Menu with AssetBundle toggle with F3
-            if (Input.GetKeyDown(KeyCode.F3))
-            {
-                Logger.LogInfo($"[Plugin] F3 pressed - Toggling AssetBundle Mod Menu");
+                Logger.LogInfo($"[Plugin] F1 pressed - Toggling Mod Menu");
                 _modMenuManager?.ToggleAssetBundleMenu();
             }
-        }
-        
-        private void OnGUI()
-        {
-            _ui.OnGUI();
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -267,14 +246,10 @@ namespace FollowMePeak
             _recordingManager.StartRecording();
         }
         
-        // Method to show tag selection for newly created climbs - DISABLED FOR NOW
         public void ShowTagSelectionForNewClimb(ClimbData climbData)
         {
-            // Skip tag selection for now and directly upload if auto-upload is enabled
+            // Directly upload if auto-upload is enabled
             UploadIfAutoUploadEnabled(climbData);
-
-            // Show the tag selection UI - DISABLED FOR NOW
-            // _ui.ShowTagSelectionForClimb(climbData, UploadIfAutoUploadEnabled);
         }
 
         private void UploadIfAutoUploadEnabled(ClimbData climbData)

@@ -103,7 +103,12 @@ namespace FollowMePeak.Managers
                 // TODO: Is this still valid even if the player is in third-person view?
                 var camera = Camera.main;
                 if (camera != null)
-                    _currentRecordedClimb.Add(camera.transform.position);
+                {
+                    // Record position below camera to prevent the playback line from blocking the player's view
+                    // Offset by 0.8 units downward from camera position
+                    Vector3 recordPosition = camera.transform.position + Vector3.down * 0.8f;
+                    _currentRecordedClimb.Add(recordPosition);
+                }
                 yield return new WaitForSeconds(0.5f);
             }
         }

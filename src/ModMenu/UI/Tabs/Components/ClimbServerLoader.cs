@@ -59,6 +59,36 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             LoadClimbsFromServer(levelId, biomeFilter, ascentFilter, peakCodeFilter);
         }
         
+        public void ForceReload(string biomeFilter = "", int? ascentFilter = null, string peakCodeFilter = "")
+        {
+            Debug.Log("[ClimbServerLoader] Force reloading server data");
+            
+            // Reset all cached state to force a fresh load
+            _hasLoadedForCurrentLevel = false;
+            _lastLoadedLevel = "";
+            _lastBiomeFilter = "";
+            _lastAscentFilter = null;
+            _lastPeakCodeFilter = "";
+            
+            // Clear current data
+            _currentPageClimbs.Clear();
+            
+            // Check if CloudSync is enabled
+            bool cloudSyncEnabled = ModMenuManager.ServerConfig?.Config?.EnableCloudSync ?? false;
+            
+            if (cloudSyncEnabled)
+            {
+                // Load from server if CloudSync is enabled
+                CheckAndLoadInitialData(biomeFilter, ascentFilter, peakCodeFilter);
+            }
+            else
+            {
+                Debug.Log("[ClimbServerLoader] CloudSync disabled - keeping list empty");
+                // Trigger event with empty list to update UI
+                OnServerClimbsLoaded?.Invoke(_currentPageClimbs);
+            }
+        }
+        
         private void LoadClimbsFromServer(string levelId, string biomeFilter = "", int? ascentFilter = null, 
             string peakCodeFilter = "", string sortBy = "created_at", string sortOrder = "desc")
         {
@@ -154,6 +184,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         
         public void Reset()
         {
+            Debug.Log("[ClimbServerLoader] Resetting loader state");
             _hasLoadedForCurrentLevel = false;
             _lastLoadedLevel = "";
             _lastBiomeFilter = "";
@@ -163,6 +194,9 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             _lastSortOrder = "desc";          // Reset to default
             _isLoading = false;
             _currentPageClimbs.Clear();
+            
+            // Trigger event to update UI
+            OnServerClimbsLoaded?.Invoke(_currentPageClimbs);
         }
         
         // Call this when level changes to force reload on next show

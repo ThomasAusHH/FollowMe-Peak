@@ -1070,26 +1070,33 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         // Called when the climbs page becomes visible
         public void OnShow()
         {
-            Debug.Log("[ClimbsTab] OnShow - Checking for server data");
+            Debug.Log("[ClimbsTab] OnShow - Force reloading data");
             
             // Check if player is in valid level first
             bool isInLevel = IsPlayerInValidLevel();
             
             if (isInLevel)
             {
-                // Load server data if in valid level
+                // Always force reload when switching to Climbs tab
+                // This ensures:
+                // - Fresh data when CloudSync is enabled
+                // - Cleared data when CloudSync is disabled
                 string currentBiome = GetCurrentBiomeFilter();
                 string climbCode = _climbCodeInput?.text?.Trim() ?? "";
-                _serverLoader?.CheckAndLoadInitialData(currentBiome, _ascentFilter, climbCode);
+                
+                Debug.Log("[ClimbsTab] Forcing reload with current filters");
+                _serverLoader?.ForceReload(currentBiome, _ascentFilter, climbCode);
             }
             else
             {
                 // Clear server climbs if not in level
                 _serverLoader?.Reset();
+                
+                // Refresh to show "not on island" message
+                RefreshClimbsList();
             }
             
-            // Always refresh to update notifications
-            RefreshClimbsList();
+            // Note: RefreshClimbsList will be called by OnServerClimbsLoaded event
         }
         
         // Server loader event handlers
