@@ -27,7 +27,6 @@ namespace FollowMePeak.Models
         // User-configurable settings
         public bool EnableCloudSync { get; set; } = false;
         public string PlayerName { get; set; } = "Anonymous";
-        public bool? UseCompressedFormat { get; set; } = true; // Use compressed upload/download by default
         
         // Rate limiting tracking
         public DateTime LastUploadReset { get; set; } = DateTime.MinValue;
