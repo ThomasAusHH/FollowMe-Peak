@@ -118,55 +118,26 @@ namespace FollowMePeak.Services
             int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
             _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
             
-            string json;
+            // Always use compressed format
+            var compressedData = new System.IO.MemoryStream();
+            Utils.ClimbDataCrusher.WriteClimbData(compressedData, climbData);
+            var compressedBytes = compressedData.ToArray();
             
-            // Use compressed format if enabled (you can add a config option for this)
-            bool useCompression = _config.UseCompressedFormat ?? true;
+            var uploadData = new
+            {
+                levelId = levelId,
+                playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                pointData = Convert.ToBase64String(compressedBytes),
+                compressionVersion = 1,
+                isSuccessful = true, // Will be determined by validation logic
+                tags = new string[] { }, // Can be extended later
+                ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
+            };
             
-            if (useCompression)
-            {
-                // Compress points before upload
-                var compressedData = new System.IO.MemoryStream();
-                Utils.ClimbDataCrusher.WriteClimbData(compressedData, climbData);
-                var compressedBytes = compressedData.ToArray();
-                
-                var uploadData = new
-                {
-                    levelId = levelId,
-                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
-                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
-                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
-                    pointData = Convert.ToBase64String(compressedBytes),
-                    compressionVersion = 1,
-                    isSuccessful = true, // Will be determined by validation logic
-                    tags = new string[] { }, // Can be extended later
-                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
-                };
-                
-                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
-                _logger.LogInfo($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
-            }
-            else
-            {
-                // Legacy format - convert ClimbData to server format and reduce points if necessary
-                var apiPoints = climbData.Points;
-                apiPoints = ReducePointsIfNeeded(apiPoints);
-                
-                var uploadData = new
-                {
-                    levelId = levelId,
-                    playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
-                    biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
-                    duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
-                    points = apiPoints,
-                    isSuccessful = true, // Will be determined by validation logic
-                    tags = new string[] { }, // Can be extended later
-                    ascentLevel = clampedAscentLevel // Clamp to -1 to 8 range
-                };
-                
-                json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
-                _logger.LogInfo($"Using legacy upload format. Points: {apiPoints.Count}");
-            }
+            string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+            _logger.LogInfo($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
             
             // Find ascentLevel in JSON for debugging
             int ascentIndex = json.IndexOf("\"ascentLevel\":");
@@ -277,11 +248,8 @@ namespace FollowMePeak.Services
             
             urlBuilder.Append($"&sort_by={sortBy}&sort_order={sortOrder}");
             
-            // Request compressed format if enabled
-            if (_config.UseCompressedFormat ?? true)
-            {
-                urlBuilder.Append("&format=compressed");
-            }
+            // Always request compressed format
+            urlBuilder.Append("&format=compressed");
             
             string url = urlBuilder.ToString();
             
@@ -362,13 +330,8 @@ namespace FollowMePeak.Services
 
         private IEnumerator SearchClimbByPeakCodeCoroutine(string peakCode, System.Action<ClimbData, string> callback)
         {
-            string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode}";
-            
-            // Request compressed format if enabled
-            if (_config.UseCompressedFormat ?? true)
-            {
-                url += "?format=compressed";
-            }
+            // Always request compressed format
+            string url = $"{_config.BaseUrl}/api/climbs/search/{peakCode}?format=compressed";
             
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
@@ -452,36 +415,6 @@ namespace FollowMePeak.Services
             // Most servers have a default limit of around 1-4MB for POST requests
             // We'll use 2MB as a safe default, but make it configurable
             return 2 * 1024 * 1024; // 2MB
-        }
-
-        // Helper method to reduce points if path is too complex
-        private List<Vector3> ReducePointsIfNeeded(List<Vector3> points)
-        {
-            const int maxPoints = 8000; // Reasonable limit for most paths
-            
-            if (points.Count <= maxPoints)
-                return points;
-
-            _logger.LogWarning($"Path has {points.Count} points, reducing to {maxPoints} for upload");
-
-            // Use simple decimation - take every nth point to reduce complexity
-            var reducedPoints = new List<Vector3>();
-            float step = (float)points.Count / maxPoints;
-            
-            for (int i = 0; i < maxPoints; i++)
-            {
-                int index = Mathf.RoundToInt(i * step);
-                if (index < points.Count)
-                    reducedPoints.Add(points[index]);
-            }
-
-            // Always include the last point to maintain path integrity
-            if (reducedPoints.Count > 0 && !reducedPoints.Last().Equals(points.Last()))
-            {
-                reducedPoints[reducedPoints.Count - 1] = points.Last();
-            }
-
-            return reducedPoints;
         }
     }
 }
