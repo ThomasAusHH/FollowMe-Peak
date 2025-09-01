@@ -32,6 +32,9 @@ A BepInEx plugin for Peak that automatically records paths in levels and display
   - Delete paths
 - Paths are automatically saved when you light a campfire
 
+### Map Rotation Note
+When the map rotation occurs, all saved routes are reset. Someone needs to climb ahead and share their route with others to rebuild the path database for the new rotation.
+
 ## Cloud Synchronization (Optional)
 
 The plugin supports an optional server for sharing paths:
@@ -55,6 +58,11 @@ If the plugin doesn't work:
 3. Restart the game after installation
 
 ## Changelog
+
+### v1.0.1
+
+**Fix**
+- Fixed a rendering issue that caused the User Interface (UI) to display pink boxes instead of text when using Vulkan (e.g., on Linux/Steam Deck). All text is now rendering correctly.
 
 ### v1.0.0
 
