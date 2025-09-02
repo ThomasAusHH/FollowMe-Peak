@@ -13,7 +13,7 @@ using FollowMePeak.ModMenu;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "0.1.0")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.2")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
