@@ -23,6 +23,11 @@ namespace FollowMePeak.ModMenu
         private GameObject _assetBundleMenuInstance;
         private bool _assetBundleLoaded = false;
         private ModMenuUIController _uiController;
+        private UI.SettingsController _settingsController;
+        
+        // Update Message
+        private bool _hasCheckedForUpdate = false;
+        private Models.UpdateMessage _lastUpdateMessage = null;
         
         // Services (to be set from Plugin)
         public static Services.ServerConfigService ServerConfig { get; set; }
@@ -374,6 +379,63 @@ namespace FollowMePeak.ModMenu
             }
         }
         
+        private void CheckForUpdateMessages()
+        {
+            Debug.Log("[ModMenu] CheckForUpdateMessages called");
+            
+            // Check for update messages on first open
+            if (!_hasCheckedForUpdate && ApiService != null)
+            {
+                _hasCheckedForUpdate = true;
+                Debug.Log($"[ModMenu] First time check - calling API for version: {FollowMePeak.Plugin.MOD_VERSION}");
+                
+                ApiService.CheckForUpdateMessage(FollowMePeak.Plugin.MOD_VERSION, (updateMessage) =>
+                {
+                    Debug.Log($"[ModMenu] Update check callback - HasUpdate: {updateMessage?.HasUpdate}, Type: {updateMessage?.Type}, Message: {updateMessage?.Message?.Substring(0, System.Math.Min(50, updateMessage?.Message?.Length ?? 0))}...");
+                    
+                    if (updateMessage != null && updateMessage.HasUpdate)
+                    {
+                        _lastUpdateMessage = updateMessage;
+                        // Pass to ClimbsTab if it exists
+                        if (_uiController != null)
+                        {
+                            var climbsTab = _uiController.GetClimbsTabController();
+                            Debug.Log($"[ModMenu] Got ClimbsTabController: {climbsTab != null}");
+                            
+                            if (climbsTab != null)
+                            {
+                                Debug.Log("[ModMenu] Calling ShowUpdateMessage on ClimbsTab");
+                                climbsTab.ShowUpdateMessage(updateMessage);
+                            }
+                            else
+                            {
+                                Debug.LogError("[ModMenu] ClimbsTabController is null!");
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogError("[ModMenu] UIController is null!");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("[ModMenu] No update message or HasUpdate is false");
+                    }
+                });
+            }
+            // If we already have a message, show it again (unless dismissed)
+            else if (_lastUpdateMessage != null && _lastUpdateMessage.HasUpdate)
+            {
+                Debug.Log("[ModMenu] Showing cached update message");
+                var climbsTab = _uiController?.GetClimbsTabController();
+                climbsTab?.ShowUpdateMessage(_lastUpdateMessage);
+            }
+            else
+            {
+                Debug.Log($"[ModMenu] Not checking - already checked: {_hasCheckedForUpdate}, ApiService: {ApiService != null}, cached message: {_lastUpdateMessage != null}");
+            }
+        }
+        
         public void ToggleAssetBundleMenu()
         {
             Debug.Log($"[ModMenu] ToggleAssetBundleMenu called");
@@ -453,6 +515,9 @@ namespace FollowMePeak.ModMenu
                 
                 // Trigger OnShow for the active tab when opening menu
                 _uiController?.OnMenuOpened();
+                
+                // Check for update messages on first open
+                CheckForUpdateMessages();
             }
             else
             {
@@ -484,7 +549,17 @@ namespace FollowMePeak.ModMenu
             _uiController = new ModMenuUIController();
             _uiController.Initialize(_assetBundleMenuInstance);
             
-            Debug.Log("[ModMenu] UI Controller initialized");
+            // Initialize Settings Controller
+            _settingsController = new UI.SettingsController();
+            _settingsController.Initialize(_assetBundleMenuInstance);
+            
+            Debug.Log("[ModMenu] UI Controller and Settings Controller initialized");
+        }
+        
+        public void Update()
+        {
+            // Update Settings Controller for key recording
+            _settingsController?.Update();
         }
         
         public void Cleanup()

@@ -25,11 +25,12 @@ namespace FollowMePeak.Patches
         [HarmonyPostfix]
         public static void SavePathAfterCampfireLit()
         {
-            if(Plugin.Instance != null)
+            if (Plugin.Instance != null)
             {
                 Debug.Log("[FollowMe-Peak] Campfire.Light_Rpc() completed. Saving triggered.");
                 Plugin.Instance.OnCampfireLit(BiomeNameOfCompletedSegment);
             }
         }
     }
+    
 }

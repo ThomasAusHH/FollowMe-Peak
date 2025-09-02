@@ -24,6 +24,11 @@ namespace FollowMePeak.Models
         public int AscentLevel { get; set; } = 0; // Ascent level (-1 to 8+, -1 = not started, 0-8+ = progress)
         // public List<string> Tags { get; set; } = new List<string>();
         
+        // Fly Detection flags - persisted with climb
+        public bool WasFlagged { get; set; } = false;
+        public float FlaggedScore { get; set; } = 0f;
+        public string FlaggedReason { get; set; } = "";
+        
         // Generate user-friendly save name if empty
         public string GetDisplayName()
         {
@@ -137,6 +142,15 @@ namespace FollowMePeak.Models
 
             writer.WritePropertyName("ShareCode");
             writer.WriteValue(value.ShareCode);
+            
+            writer.WritePropertyName("WasFlagged");
+            writer.WriteValue(value.WasFlagged);
+            
+            writer.WritePropertyName("FlaggedScore");
+            writer.WriteValue(value.FlaggedScore);
+            
+            writer.WritePropertyName("FlaggedReason");
+            writer.WriteValue(value.FlaggedReason);
 
             /*
             // Tags property (disabled for now)
@@ -198,6 +212,15 @@ namespace FollowMePeak.Models
                             break;
                         case "ShareCode":
                             climbData.ShareCode = serializer.Deserialize<string>(reader);
+                            break;
+                        case "WasFlagged":
+                            climbData.WasFlagged = serializer.Deserialize<bool>(reader);
+                            break;
+                        case "FlaggedScore":
+                            climbData.FlaggedScore = serializer.Deserialize<float>(reader);
+                            break;
+                        case "FlaggedReason":
+                            climbData.FlaggedReason = serializer.Deserialize<string>(reader);
                             break;
                         /*
                         // Tags property (disabled for now)
