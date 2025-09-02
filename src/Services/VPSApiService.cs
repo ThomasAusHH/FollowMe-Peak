@@ -27,6 +27,10 @@ namespace FollowMePeak.Services
 
         public bool IsServerReachable { get; private set; } = false;
         public DateTime LastHealthCheck { get; private set; } = DateTime.MinValue;
+        
+        // Update Message Cache
+        private UpdateMessage _cachedUpdateMessage = null;
+        private readonly object _updateCacheLock = new object();
 
         // Health Check
         public void CheckServerHealth(System.Action<bool> callback = null)
@@ -80,6 +84,78 @@ namespace FollowMePeak.Services
             }
         }
 
+        // Check for Update Messages
+        public void CheckForUpdateMessage(string modVersion, System.Action<UpdateMessage> callback)
+        {
+            // Check cache first
+            lock (_updateCacheLock)
+            {
+                if (_cachedUpdateMessage != null && _cachedUpdateMessage.IsCacheValid())
+                {
+                    _logger.LogInfo("[UpdateMessage] Using cached message");
+                    callback?.Invoke(_cachedUpdateMessage);
+                    return;
+                }
+            }
+            
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                return;
+            }
+            
+            _coroutineRunner.StartCoroutine(CheckForUpdateMessageCoroutine(modVersion, callback));
+        }
+
+        private IEnumerator CheckForUpdateMessageCoroutine(string modVersion, System.Action<UpdateMessage> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/updates/check/{UnityWebRequest.EscapeURL(modVersion)}";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<UpdateMessageResponse>(
+                            request.downloadHandler.text, CommonJsonSettings.Default);
+                        
+                        var updateMessage = new UpdateMessage
+                        {
+                            HasUpdate = response.HasUpdate,
+                            Message = response.Message,
+                            Type = response.Type ?? "info",
+                            LastChecked = DateTime.Now
+                        };
+                        
+                        // Cache the result
+                        lock (_updateCacheLock)
+                        {
+                            _cachedUpdateMessage = updateMessage;
+                        }
+                        
+                        _logger.LogInfo($"[UpdateMessage] Check complete - HasUpdate: {updateMessage.HasUpdate}");
+                        callback?.Invoke(updateMessage);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"[UpdateMessage] Failed to parse response: {e.Message}");
+                        callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"[UpdateMessage] Check failed: {request.error}");
+                    callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                }
+            }
+        }
+
         // Upload Climb
         public void UploadClimb(ClimbData climbData, string levelId, System.Action<bool, string> callback)
         {
@@ -96,6 +172,27 @@ namespace FollowMePeak.Services
             }
 
             _coroutineRunner.StartCoroutine(UploadClimbCoroutine(climbData, levelId, callback));
+        }
+        
+        // Upload Climb with Detection Data
+        public void UploadClimbWithDetection(ClimbData climbData, string levelId, 
+            bool isFlagged, float detectionScore, string detectionReason, 
+            System.Action<bool, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(false, "Cloud sync disabled");
+                return;
+            }
+
+            if (!_config.CanUpload())
+            {
+                callback?.Invoke(false, "Upload rate limit exceeded");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(UploadClimbWithDetectionCoroutine(
+                climbData, levelId, isFlagged, detectionScore, detectionReason, callback));
         }
 
         private IEnumerator UploadClimbCoroutine(ClimbData climbData, string levelId, System.Action<bool, string> callback)
@@ -153,6 +250,108 @@ namespace FollowMePeak.Services
             }
             
             _logger.LogInfo($"Upload JSON payload (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}...");
+            
+            // Check payload size before upload
+            if (json.Length > GetMaxPayloadSize())
+            {
+                string error = $"Payload too large ({json.Length} bytes). Consider reducing climb complexity.";
+                _logger.LogError(error);
+                callback?.Invoke(false, error);
+                yield break;
+            }
+            
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
+                request.timeout = _config.TimeoutSeconds;
+
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ApiResponse<ClimbUploadResponse>>(request.downloadHandler.text, CommonJsonSettings.Default);
+                        
+                        if (response.Success)
+                        {
+                            _config.IncrementUploadCount();
+                            _logger.LogInfo($"Climb uploaded successfully: {response.Data.ClimbId}");
+                            callback?.Invoke(true, response.Data.ClimbId);
+                        }
+                        else
+                        {
+                            _logger.LogError($"Upload failed: {response.Error}");
+                            callback?.Invoke(false, response.Error);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"Failed to parse upload response: {e.Message}");
+                        callback?.Invoke(false, "Parse error");
+                    }
+                }
+                else
+                {
+                    string error = $"Upload request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.LogError(error);
+                    callback?.Invoke(false, error);
+                }
+            }
+        }
+        
+        private IEnumerator UploadClimbWithDetectionCoroutine(ClimbData climbData, string levelId, 
+            bool isFlagged, float detectionScore, string detectionReason, 
+            System.Action<bool, string> callback)
+        {
+            // Input validation
+            if (!InputValidator.IsValidLevelId(levelId))
+            {
+                callback?.Invoke(false, "Invalid level ID format");
+                yield break;
+            }
+            
+            if (!InputValidator.IsValidPointCount(climbData.Points?.Count ?? 0))
+            {
+                callback?.Invoke(false, "Invalid climb data - point count out of range");
+                yield break;
+            }
+            
+            string url = $"{_config.BaseUrl}/api/climbs";
+            
+            int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
+            _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
+            
+            // Always use compressed format
+            var compressedData = new System.IO.MemoryStream();
+            Utils.ClimbDataCrusher.WriteClimbData(compressedData, climbData);
+            var compressedBytes = compressedData.ToArray();
+            
+            var uploadData = new
+            {
+                levelId = levelId,
+                playerName = InputValidator.SanitizePlayerName(_config.PlayerName),
+                biomeName = InputValidator.SanitizeBiomeName(climbData.BiomeName),
+                duration = InputValidator.ClampDuration(climbData.DurationInSeconds),
+                pointData = Convert.ToBase64String(compressedBytes),
+                compressionVersion = 1,
+                isSuccessful = true,
+                tags = new string[] { },
+                ascentLevel = clampedAscentLevel,
+                // Detection & Version Data
+                modVersion = Plugin.MOD_VERSION,
+                isFlagged = isFlagged,
+                detectionScore = detectionScore,
+                detectionReason = detectionReason
+            };
+            
+            string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
+            _logger.LogInfo($"Using compressed upload format with detection data. Version: {Plugin.MOD_VERSION}, Flagged: {isFlagged}");
             
             // Check payload size before upload
             if (json.Length > GetMaxPayloadSize())

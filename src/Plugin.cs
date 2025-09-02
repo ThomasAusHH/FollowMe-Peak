@@ -13,10 +13,14 @@ using FollowMePeak.ModMenu;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "0.1.0")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.2")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
+        public const string MOD_VERSION = "1.0.2";
+
+        // Controls Configuration
+        public static BepInEx.Configuration.ConfigEntry<KeyCode> ModMenuToggleKey;
 
         // Existing services
         private ClimbDataService _climbDataService;
@@ -42,6 +46,16 @@ namespace FollowMePeak
         {
             Instance = this;
             Logger.LogInfo($"Plugin {Info.Metadata.GUID} loaded!");
+            
+            // Initialize Controls Configuration
+            InitializeControlsConfig();
+            
+            // Initialize Fly Detection (always enabled with fixed values)
+            if (Detection.FlyDetectionConfig.IsEnabled)
+            {
+                Logger.LogInfo("[FlyDetection] System initialized with fixed configuration");
+                Logger.LogInfo($"[FlyDetection] Threshold: {Detection.FlyDetectionConfig.DetectionThreshold}, CheckInterval: {Detection.FlyDetectionConfig.DetectionCheckInterval}");
+            }
             
             InitializeServices();
             
@@ -88,6 +102,20 @@ namespace FollowMePeak
                     Logger.LogInfo($"Initial server health check: {(isHealthy ? "Connected" : "Failed")}");
                 });
             }
+        }
+        
+        private void InitializeControlsConfig()
+        {
+            // Controls Configuration
+            ModMenuToggleKey = Config.Bind(
+                "Controls", 
+                "ModMenuToggleKey", 
+                KeyCode.F1, 
+                "Key to toggle the mod menu"
+            );
+            
+            // No need to initialize FlyDetectionConfig anymore - it uses constants
+            Detection.FlyDetectionConfig.ValidateConfig();
         }
         
         private void OnDestroy()
@@ -138,15 +166,27 @@ namespace FollowMePeak
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F1))
+            if (Input.GetKeyDown(ModMenuToggleKey.Value))
             {
-                Logger.LogInfo($"[Plugin] F1 pressed - Toggling Mod Menu");
+                Logger.LogInfo($"[Plugin] {ModMenuToggleKey.Value} pressed - Toggling Mod Menu");
                 _modMenuManager?.ToggleAssetBundleMenu();
+            }
+            
+            // Update ModMenuManager for key recording
+            _modMenuManager?.Update();
+            
+            // Perform fly detection checks (always enabled)
+            if (Detection.FlyDetectionConfig.IsEnabled)
+            {
+                Detection.SimpleFlyDetector.PerformDetection();
             }
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            // Notify fly detector of scene change
+            Detection.SimpleFlyDetector.OnSceneChanged(scene.name);
+            
             if (scene.name.StartsWith("Level_"))
             {
                 StartCoroutine(InitializePathSystem(scene));
@@ -243,6 +283,10 @@ namespace FollowMePeak
         public void OnCampfireLit(string biomeName)
         {
             _recordingManager.SaveCurrentClimb(biomeName);
+            
+            // Reset Fly Detection for new recording
+            Detection.SimpleFlyDetector.ResetForNewRecording();
+            
             _recordingManager.StartRecording();
         }
         
