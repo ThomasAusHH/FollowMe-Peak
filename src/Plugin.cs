@@ -17,6 +17,7 @@ namespace FollowMePeak
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
+        public const string MOD_VERSION = "1.0.2";
 
         // Fly Detection Configuration
         public static BepInEx.Configuration.ConfigEntry<bool> FlyDetection_Enable;
@@ -343,6 +344,10 @@ namespace FollowMePeak
         public void OnCampfireLit(string biomeName)
         {
             _recordingManager.SaveCurrentClimb(biomeName);
+            
+            // Reset Fly Detection for new recording
+            Detection.SimpleFlyDetector.ResetForNewRecording();
+            
             _recordingManager.StartRecording();
         }
         

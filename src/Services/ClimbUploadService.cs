@@ -38,26 +38,20 @@ namespace FollowMePeak.Services
         // Queue a climb for upload
         public void QueueForUpload(ClimbData climbData, string levelId)
         {
-            // Check for fly detection FIRST
-            Detection.SimpleFlyDetector.PerformDetection();
-            if (Detection.SimpleFlyDetector.ShouldFlagClimb())
+            // Log if climb was flagged, but still upload it
+            if (climbData.WasFlagged)
             {
-                _logger.LogWarning("[FlyDetection] Climb upload blocked - fly mod detected!");
-                _logger.LogWarning($"[FlyDetection] Detection Score: {Detection.SimpleFlyDetector.DetectionScore}/100");
-                _logger.LogWarning($"[FlyDetection] Reason: {Detection.SimpleFlyDetector.LastDetectionReason}");
-                
-                // Log the climb details that would have been uploaded
-                _logger.LogInfo($"[FlyDetection] Blocked climb: {climbData.Id} in level {levelId}");
+                _logger.LogWarning("[FlyDetection] Climb was flagged during recording - will upload as private!");
+                _logger.LogWarning($"[FlyDetection] Score: {climbData.FlaggedScore}/100");
+                _logger.LogWarning($"[FlyDetection] Reason: {climbData.FlaggedReason}");
                 
                 // Show warning to user if configured
                 if (Plugin.FlyDetection_ShowWarning.Value)
                 {
-                    // This would trigger UI notification - implementation depends on UI system
-                    _logger.LogWarning("[FlyDetection] Climb was not uploaded due to fly mod detection");
+                    _logger.LogWarning("[FlyDetection] Climb will be uploaded as private due to fly mod detection");
                 }
-                
-                return; // Don't queue the climb for upload
             }
+            // Continue with upload regardless of flag status
             
             if (!_configService.Config.EnableCloudSync || !_configService.Config.AutoUpload)
             {
@@ -163,21 +157,14 @@ namespace FollowMePeak.Services
                 return;
             }
             
-            // Check for fly detection before uploading
-            Detection.SimpleFlyDetector.PerformDetection();
-            if (Detection.SimpleFlyDetector.ShouldFlagClimb())
+            // Log if climb was flagged, but still process it
+            if (item.ClimbData.WasFlagged)
             {
-                _logger.LogWarning($"[FlyDetection] Removing climb {item.ClimbData.Id} from queue - fly mod detected during processing");
-                _logger.LogWarning($"[FlyDetection] Score: {Detection.SimpleFlyDetector.DetectionScore}/100");
-                
-                // Remove from queue
-                item.Status = UploadStatus.Failed;
-                item.LastError = "Fly mod detected - climb flagged as private";
-                
-                // Continue with next item
-                ProcessNextItem(items, index + 1);
-                return;
+                _logger.LogWarning($"[FlyDetection] Processing flagged climb {item.ClimbData.Id}");
+                _logger.LogWarning($"[FlyDetection] Score: {item.ClimbData.FlaggedScore}/100");
+                _logger.LogWarning($"[FlyDetection] Will upload as private to server");
             }
+            // Continue with upload regardless of flag status
             
             // Check rate limiting
             if (!_configService.Config.CanUpload())
@@ -215,9 +202,16 @@ namespace FollowMePeak.Services
                 Points = item.ClimbData.Points,
                 AscentLevel = item.ClimbData.AscentLevel
             };
+            
+            // Get detection state from saved climb data
+            bool isFlyDetected = item.ClimbData.WasFlagged;
+            float detectionScore = item.ClimbData.FlaggedScore;
+            string detectionReason = item.ClimbData.FlaggedReason;
 
-            // Perform upload
-            _apiService.UploadClimb(uploadClimb, levelId, (success, error) =>
+            // Perform upload with detection data
+            _apiService.UploadClimbWithDetection(uploadClimb, levelId, 
+                isFlyDetected, detectionScore, detectionReason,
+                (success, error) =>
             {
                 if (success)
                 {

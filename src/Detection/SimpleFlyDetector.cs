@@ -37,6 +37,11 @@ namespace FollowMePeak.Detection
         public static float DetectionScore => _detectionScore;
         public static string LastDetectionReason => _lastReason;
         
+        // Sticky flags for current recording
+        public static bool WasDetectedInCurrentRecording { get; private set; }
+        public static float MaxScoreInCurrentRecording { get; private set; }
+        public static string ReasonForCurrentRecording { get; private set; } = "No detection in this recording";
+        
         static SimpleFlyDetector()
         {
             _logger = BepInEx.Logging.Logger.CreateLogSource("SimpleFlyDetector");
@@ -165,12 +170,12 @@ namespace FollowMePeak.Detection
                         float horizontalSpeed = new Vector2(currentVelocity.x, currentVelocity.z).magnitude;
 
                         // Direkte Geschwindigkeits-Checks
-                        if (horizontalSpeed > 10f)
+                        if (horizontalSpeed > 15f)
                         {
                             score += 50;
                             _activeFlags.Add($"High horizontal speed: {horizontalSpeed:F1} m/s");
                         }
-                        if (verticalSpeed > 10f)
+                        if (verticalSpeed > 15f)
                         {
                             score += 50;
                             _activeFlags.Add($"High vertical speed: {verticalSpeed:F1} m/s");
@@ -236,7 +241,18 @@ namespace FollowMePeak.Detection
             
             if (IsFlyDetected && !wasDetected)
             {
+                // Set sticky flag for current recording
+                WasDetectedInCurrentRecording = true;
+                MaxScoreInCurrentRecording = Math.Max(MaxScoreInCurrentRecording, _detectionScore);
+                ReasonForCurrentRecording = _lastReason;
                 LogDetection();
+            }
+            
+            // Update max score if already detected
+            if (WasDetectedInCurrentRecording && _detectionScore > MaxScoreInCurrentRecording)
+            {
+                MaxScoreInCurrentRecording = _detectionScore;
+                ReasonForCurrentRecording = _lastReason;
             }
         }
         
@@ -327,6 +343,18 @@ namespace FollowMePeak.Detection
                 _activeFlags.Clear();
             }
             _lastSceneName = sceneName;
+        }
+        
+        /// <summary>
+        /// Resets the detection flags for a new recording (new biome)
+        /// </summary>
+        public static void ResetForNewRecording()
+        {
+            _logger.LogInfo("[FlyDetection] Reset for new recording");
+            WasDetectedInCurrentRecording = false;
+            MaxScoreInCurrentRecording = 0f;
+            ReasonForCurrentRecording = "No detection in this recording";
+            // IsFlyDetected remains as is (live status)
         }
 
         private static void LogDetection()
