@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.0.2] - 2025-09-02
+
+### New Features
+- **Improved flymod detection** - Now only displays valid climbs without false positives
+- **Update notification system** - Displays in-game notifications when a new mod version is available
+- **New settings menu** - Customizable hotkey configuration for toggling the menu
+
+### Improvements
+- Better climb validation to ensure only legitimate climbs are shown
+- Push notification capability for mod updates
+
+## [1.0.1] - 2025-09-01
+
+### Fix
+- Fixed a rendering issue that caused the User Interface (UI) to display pink boxes instead of text when using Vulkan (e.g., on Linux/Steam Deck). All text is now rendering correctly.
+
+## [1.0.0] - 2025-08-31
+
+### New Features
+- Completely redesigned UI that matches Peak's visual style
+- Difficulty tracking implemented - Ascent level is now saved and can be used as a filter to display climbs
+- Advanced search and filtering functionality for climbs
+- Optimized climb storage with reduced memory usage locally and on the server
+- Non-blocking route display that doesn't obstruct the game view
+
+### Fixes & Optimizations
+- Fixed lag spikes when activating campfires
+- Limited to 25 climbs per filter for better performance (previously loaded all climbs)
+- Automatic list updates with visible climbs always appearing at the top
+- Improved sorting system for cloud and local climbs by duration
+
+### Technical Improvements
+- Memory optimization for climb data storage
+- Improved rendering performance for path visualization
+- Better UI responsiveness and user interaction
+
 ## [0.1.0] - 2025-01-20
 
 ### Added
