@@ -11,7 +11,7 @@ A BepInEx plugin for Peak that automatically records paths in levels and display
 - **Advanced Filtering**: Easy search and filter climbs through the UI
 - **Biome-specific Paths**: Saves paths separately by biomes/level areas
 - **Cloud Synchronization**: Share your paths with other players via an optional server
-- **Easy Controls**: F1 key opens the settings menu
+- **Easy Controls**: Configurable hotkey (default F1) to open the settings menu
 - **Persistent Storage**: Paths are saved between game sessions
 
 ## Installation
@@ -23,12 +23,13 @@ A BepInEx plugin for Peak that automatically records paths in levels and display
 ## Usage
 
 - The plugin automatically starts path recording when a level is loaded
-- Press **F1** to open/close the settings menu
+- Press **F1** (or your configured hotkey) to open/close the settings menu
 - In the menu you can:
   - Toggle path visibility on/off
   - Filter climbs by difficulty (Ascent level) / Biome / Climb Code
   - Search and manage climbs easily
   - Configure cloud synchronization
+  - Customize the menu hotkey
   - Delete paths
 - Paths are automatically saved when you light a campfire
 
@@ -58,6 +59,17 @@ If the plugin doesn't work:
 3. Restart the game after installation
 
 ## Changelog
+
+### v1.0.2
+
+**New Features:**
+- **Improved flymod detection** - Now only displays valid climbs without false positives
+- **Update notification system** - Displays in-game notifications when a new mod version is available
+- **New settings menu** - Customizable hotkey configuration for toggling the menu
+
+**Improvements:**
+- Better climb validation to ensure only legitimate climbs are shown
+- Push notification capability for mod updates
 
 ### v1.0.1
 
