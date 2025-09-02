@@ -19,15 +19,8 @@ namespace FollowMePeak
         public static Plugin Instance { get; private set; }
         public const string MOD_VERSION = "1.0.2";
 
-        // Fly Detection Configuration
-        public static BepInEx.Configuration.ConfigEntry<bool> FlyDetection_Enable;
-        public static BepInEx.Configuration.ConfigEntry<float> FlyDetection_Threshold;
-        public static BepInEx.Configuration.ConfigEntry<bool> FlyDetection_LogDetections;
-        public static BepInEx.Configuration.ConfigEntry<bool> FlyDetection_AutoFlagClimbs;
-        public static BepInEx.Configuration.ConfigEntry<bool> FlyDetection_ShowWarning;
-        public static BepInEx.Configuration.ConfigEntry<float> FlyDetection_CheckInterval;
-        public static BepInEx.Configuration.ConfigEntry<float> FlyDetection_GracePeriod;
-        public static BepInEx.Configuration.ConfigEntry<int> FlyDetection_MinGravityBodies;
+        // Controls Configuration
+        public static BepInEx.Configuration.ConfigEntry<KeyCode> ModMenuToggleKey;
 
         // Existing services
         private ClimbDataService _climbDataService;
@@ -54,13 +47,14 @@ namespace FollowMePeak
             Instance = this;
             Logger.LogInfo($"Plugin {Info.Metadata.GUID} loaded!");
             
-            // Initialize Fly Detection Configuration
-            InitializeFlyDetectionConfig();
+            // Initialize Controls Configuration
+            InitializeControlsConfig();
             
-            // Initialize Fly Detection
-            if (FlyDetection_Enable.Value)
+            // Initialize Fly Detection (always enabled with fixed values)
+            if (Detection.FlyDetectionConfig.IsEnabled)
             {
-                Logger.LogInfo("[FlyDetection] System initialized");
+                Logger.LogInfo("[FlyDetection] System initialized with fixed configuration");
+                Logger.LogInfo($"[FlyDetection] Threshold: {Detection.FlyDetectionConfig.DetectionThreshold}, CheckInterval: {Detection.FlyDetectionConfig.DetectionCheckInterval}");
             }
             
             InitializeServices();
@@ -110,76 +104,18 @@ namespace FollowMePeak
             }
         }
         
-        private void InitializeFlyDetectionConfig()
+        private void InitializeControlsConfig()
         {
-            // Bind Fly Detection configuration entries
-            FlyDetection_Enable = Config.Bind(
-                "FlyDetection", 
-                "Enable", 
-                true, 
-                "Enable fly mod detection system"
+            // Controls Configuration
+            ModMenuToggleKey = Config.Bind(
+                "Controls", 
+                "ModMenuToggleKey", 
+                KeyCode.F1, 
+                "Key to toggle the mod menu"
             );
             
-            FlyDetection_Threshold = Config.Bind(
-                "FlyDetection", 
-                "DetectionThreshold", 
-                50f, 
-                "Detection threshold score (0-100). Lower = more sensitive"
-            );
-            
-            FlyDetection_LogDetections = Config.Bind(
-                "FlyDetection", 
-                "LogDetections", 
-                true, 
-                "Log detailed information when fly mod is detected"
-            );
-            
-            FlyDetection_AutoFlagClimbs = Config.Bind(
-                "FlyDetection", 
-                "AutoFlagClimbs", 
-                true, 
-                "Automatically make climbs private when fly mod is detected"
-            );
-            
-            FlyDetection_ShowWarning = Config.Bind(
-                "FlyDetection", 
-                "ShowWarning", 
-                true, 
-                "Show UI warning when fly mod is detected"
-            );
-            
-            FlyDetection_CheckInterval = Config.Bind(
-                "FlyDetection", 
-                "CheckInterval", 
-                0.5f, 
-                "How often to check for fly mods (in seconds)"
-            );
-            
-            FlyDetection_GracePeriod = Config.Bind(
-                "FlyDetection", 
-                "SpawnGracePeriod", 
-                30f, 
-                "Seconds to wait after spawn before enabling detection (prevents false positives)"
-            );
-            
-            FlyDetection_MinGravityBodies = Config.Bind(
-                "FlyDetection", 
-                "MinGravityBodiesThreshold", 
-                20, 
-                "Minimum rigidbodies with disabled gravity to trigger detection"
-            );
-            
-            // Initialize FlyDetectionConfig static references
-            Detection.FlyDetectionConfig.Enable = FlyDetection_Enable;
-            Detection.FlyDetectionConfig.Threshold = FlyDetection_Threshold;
-            Detection.FlyDetectionConfig.LogDetections = FlyDetection_LogDetections;
-            Detection.FlyDetectionConfig.AutoFlagClimbs = FlyDetection_AutoFlagClimbs;
-            Detection.FlyDetectionConfig.ShowWarning = FlyDetection_ShowWarning;
-            Detection.FlyDetectionConfig.CheckInterval = FlyDetection_CheckInterval;
-            
+            // No need to initialize FlyDetectionConfig anymore - it uses constants
             Detection.FlyDetectionConfig.ValidateConfig();
-            
-            Logger.LogInfo($"[FlyDetection] Configuration initialized - Enabled: {FlyDetection_Enable.Value}, Threshold: {FlyDetection_Threshold.Value}");
         }
         
         private void OnDestroy()
@@ -230,14 +166,17 @@ namespace FollowMePeak
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F1))
+            if (Input.GetKeyDown(ModMenuToggleKey.Value))
             {
-                Logger.LogInfo($"[Plugin] F1 pressed - Toggling Mod Menu");
+                Logger.LogInfo($"[Plugin] {ModMenuToggleKey.Value} pressed - Toggling Mod Menu");
                 _modMenuManager?.ToggleAssetBundleMenu();
             }
             
-            // Perform fly detection checks
-            if (FlyDetection_Enable.Value)
+            // Update ModMenuManager for key recording
+            _modMenuManager?.Update();
+            
+            // Perform fly detection checks (always enabled)
+            if (Detection.FlyDetectionConfig.IsEnabled)
             {
                 Detection.SimpleFlyDetector.PerformDetection();
             }

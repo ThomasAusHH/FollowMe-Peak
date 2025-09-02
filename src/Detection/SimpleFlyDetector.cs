@@ -14,7 +14,7 @@ namespace FollowMePeak.Detection
         
         // Detection state
         private static float _lastCheckTime = 0f;
-        private static float _checkInterval = 0.5f;
+        private static float _checkInterval = FlyDetectionConfig.DetectionCheckInterval;
         
         // Detailed logging
         private static float _lastDetailedLogTime = 0f;
@@ -28,7 +28,7 @@ namespace FollowMePeak.Detection
 
         // Spawn protection
         private static float _gameStartTime = -1f;
-        private static float _spawnGracePeriod = 10f;
+        private static float _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
         private static bool _isInGracePeriod = true;
         private static string _lastSceneName = "";
         private static bool _isInValidLevel = false;
@@ -46,9 +46,9 @@ namespace FollowMePeak.Detection
         {
             _logger = BepInEx.Logging.Logger.CreateLogSource("SimpleFlyDetector");
             
-            // Lade hier deine Konfiguration (z.B. aus einer statischen Klasse)
-            // _checkInterval = YourConfigClass.DetectionCheckInterval;
-            // _spawnGracePeriod = YourConfigClass.GracePeriod;
+            // Configuration is now loaded from FlyDetectionConfig constants
+            _checkInterval = FlyDetectionConfig.DetectionCheckInterval;
+            _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
         }
         
         /// <summary>
@@ -226,7 +226,7 @@ namespace FollowMePeak.Detection
             
             // Final score and detection update
             _detectionScore = Mathf.Min(score, 100);
-            float threshold = 50f; // Lade dies aus deiner Config
+            float threshold = FlyDetectionConfig.DetectionThreshold;
             bool wasDetected = IsFlyDetected;
             IsFlyDetected = _detectionScore >= threshold;
             
@@ -261,9 +261,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static bool ShouldFlagClimb()
         {
-            // Passe diese Werte entsprechend deiner Konfigurations-Klasse an.
-            bool isEnabled = true; 
-            bool shouldAutoFlag = true;
+            // Use configuration from FlyDetectionConfig
+            bool isEnabled = FlyDetectionConfig.IsEnabled;
+            bool shouldAutoFlag = FlyDetectionConfig.ShouldAutoFlagClimbs;
 
             return isEnabled && shouldAutoFlag && IsFlyDetected;
         }

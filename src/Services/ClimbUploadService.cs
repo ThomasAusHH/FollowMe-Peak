@@ -45,8 +45,8 @@ namespace FollowMePeak.Services
                 _logger.LogWarning($"[FlyDetection] Score: {climbData.FlaggedScore}/100");
                 _logger.LogWarning($"[FlyDetection] Reason: {climbData.FlaggedReason}");
                 
-                // Show warning to user if configured
-                if (Plugin.FlyDetection_ShowWarning.Value)
+                // Show warning to user (always enabled with fixed config)
+                if (Detection.FlyDetectionConfig.ShouldShowWarning)
                 {
                     _logger.LogWarning("[FlyDetection] Climb will be uploaded as private due to fly mod detection");
                 }
