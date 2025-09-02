@@ -27,6 +27,10 @@ namespace FollowMePeak.Services
 
         public bool IsServerReachable { get; private set; } = false;
         public DateTime LastHealthCheck { get; private set; } = DateTime.MinValue;
+        
+        // Update Message Cache
+        private UpdateMessage _cachedUpdateMessage = null;
+        private readonly object _updateCacheLock = new object();
 
         // Health Check
         public void CheckServerHealth(System.Action<bool> callback = null)
@@ -77,6 +81,78 @@ namespace FollowMePeak.Services
                 }
                 
                 callback?.Invoke(IsServerReachable);
+            }
+        }
+
+        // Check for Update Messages
+        public void CheckForUpdateMessage(string modVersion, System.Action<UpdateMessage> callback)
+        {
+            // Check cache first
+            lock (_updateCacheLock)
+            {
+                if (_cachedUpdateMessage != null && _cachedUpdateMessage.IsCacheValid())
+                {
+                    _logger.LogInfo("[UpdateMessage] Using cached message");
+                    callback?.Invoke(_cachedUpdateMessage);
+                    return;
+                }
+            }
+            
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                return;
+            }
+            
+            _coroutineRunner.StartCoroutine(CheckForUpdateMessageCoroutine(modVersion, callback));
+        }
+
+        private IEnumerator CheckForUpdateMessageCoroutine(string modVersion, System.Action<UpdateMessage> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/updates/check/{UnityWebRequest.EscapeURL(modVersion)}";
+            
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = _config.TimeoutSeconds;
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
+                
+                yield return request.SendWebRequest();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<UpdateMessageResponse>(
+                            request.downloadHandler.text, CommonJsonSettings.Default);
+                        
+                        var updateMessage = new UpdateMessage
+                        {
+                            HasUpdate = response.HasUpdate,
+                            Message = response.Message,
+                            Type = response.Type ?? "info",
+                            LastChecked = DateTime.Now
+                        };
+                        
+                        // Cache the result
+                        lock (_updateCacheLock)
+                        {
+                            _cachedUpdateMessage = updateMessage;
+                        }
+                        
+                        _logger.LogInfo($"[UpdateMessage] Check complete - HasUpdate: {updateMessage.HasUpdate}");
+                        callback?.Invoke(updateMessage);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"[UpdateMessage] Failed to parse response: {e.Message}");
+                        callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning($"[UpdateMessage] Check failed: {request.error}");
+                    callback?.Invoke(new UpdateMessage { HasUpdate = false });
+                }
             }
         }
 

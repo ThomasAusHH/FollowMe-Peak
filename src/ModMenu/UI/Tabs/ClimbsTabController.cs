@@ -34,6 +34,14 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private GameObject _notOnIslandNotificationBackgroundImage;
         private GameObject _noClimbAvailableNotificationBackgroundImage;
         
+        // Update Message UI
+        private GameObject _updateMessageBox;
+        private TextMeshProUGUI _updateMessageText;
+        private Button _updateMessageCloseButton;
+        private Image _updateMessageBackground;
+        private UpdateMessage _currentUpdateMessage;
+        private bool _updateMessageDismissed = false;
+        
         // Components (ClimbListItemManager removed - now using prefab system)
         private ClimbFilterManager _filterManager;
         private ClimbSearchManager _searchManager;
@@ -114,6 +122,54 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             
             // Find notification elements
             FindNotificationElements();
+            
+            // Find Update Message Box (located under ClimbsScrollView, same level as InfoBox)
+            Transform scrollView = _climbsPage.transform.Find("ClimbsScrollView");
+            if (scrollView != null)
+            {
+                _updateMessageBox = scrollView.Find("UpdateMessageBox")?.gameObject;
+                if (_updateMessageBox != null)
+                {
+                    // Find Message text element
+                    Transform messageTransform = _updateMessageBox.transform.Find("Message");
+                    if (messageTransform != null)
+                    {
+                        _updateMessageText = messageTransform.GetComponent<TextMeshProUGUI>();
+                    }
+                    
+                    // Find Close button
+                    Transform closeTransform = _updateMessageBox.transform.Find("Close");
+                    if (closeTransform != null)
+                    {
+                        _updateMessageCloseButton = closeTransform.GetComponent<Button>();
+                        if (_updateMessageCloseButton != null)
+                        {
+                            _updateMessageCloseButton.onClick.RemoveAllListeners();
+                            _updateMessageCloseButton.onClick.AddListener(DismissUpdateMessage);
+                        }
+                    }
+                    
+                    // Find Background for color changes
+                    Transform backgroundTransform = _updateMessageBox.transform.Find("Background");
+                    if (backgroundTransform != null)
+                    {
+                        _updateMessageBackground = backgroundTransform.GetComponent<Image>();
+                    }
+                    
+                    // Initially hidden
+                    _updateMessageBox.SetActive(false);
+                    
+                    Debug.Log($"[ClimbsTab] UpdateMessageBox found at ClimbsScrollView - Message: {_updateMessageText != null}, Close: {_updateMessageCloseButton != null}, Background: {_updateMessageBackground != null}");
+                }
+                else
+                {
+                    Debug.LogWarning("[ClimbsTab] UpdateMessageBox not found under ClimbsScrollView");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[ClimbsTab] ClimbsScrollView not found - cannot search for UpdateMessageBox");
+            }
         }
         
         private void FindNotificationElements()
@@ -1136,6 +1192,67 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         {
             Debug.Log($"[ClimbsTab] Pagination updated: Page {currentPage + 1}/{totalPages}");
             // Could update pagination UI here if needed
+        }
+        
+        public void ShowUpdateMessage(UpdateMessage message)
+        {
+            Debug.Log($"[ClimbsTab] ShowUpdateMessage called - HasUpdate: {message?.HasUpdate}, Dismissed: {_updateMessageDismissed}");
+            
+            if (message == null || !message.HasUpdate || _updateMessageDismissed)
+            {
+                Debug.Log("[ClimbsTab] Not showing message (null, no update, or dismissed)");
+                return;
+            }
+            
+            _currentUpdateMessage = message;
+            
+            Debug.Log($"[ClimbsTab] UpdateMessageBox: {_updateMessageBox != null}, Text: {_updateMessageText != null}, Background: {_updateMessageBackground != null}");
+            
+            if (_updateMessageBox != null && _updateMessageText != null)
+            {
+                _updateMessageText.text = message.Message;
+                Debug.Log($"[ClimbsTab] Set message text: {message.Message}");
+                
+                // Set background color based on type (use separate Background element)
+                if (_updateMessageBackground != null)
+                {
+                    switch (message.Type)
+                    {
+                        case "warning":
+                            _updateMessageBackground.color = new Color(1f, 0.8f, 0.3f, 0.9f); // Yellow
+                            break;
+                        case "critical":
+                            _updateMessageBackground.color = new Color(1f, 0.3f, 0.3f, 0.9f); // Red
+                            break;
+                        default: // "info"
+                            _updateMessageBackground.color = new Color(0.3f, 0.6f, 1f, 0.9f); // Blue
+                            break;
+                    }
+                    Debug.Log($"[ClimbsTab] Set background color for type: {message.Type}");
+                }
+                
+                _updateMessageBox.SetActive(true);
+                Debug.Log($"[ClimbsTab] UpdateMessageBox activated - showing message");
+            }
+            else
+            {
+                Debug.LogError($"[ClimbsTab] Cannot show message - UpdateMessageBox or Text is null!");
+            }
+        }
+        
+        private void DismissUpdateMessage()
+        {
+            _updateMessageDismissed = true;
+            if (_updateMessageBox != null)
+            {
+                _updateMessageBox.SetActive(false);
+            }
+            Debug.Log("[ClimbsTab] Update message dismissed by user");
+        }
+        
+        public void ResetUpdateMessageState()
+        {
+            _updateMessageDismissed = false;
         }
         
         public void Cleanup()
