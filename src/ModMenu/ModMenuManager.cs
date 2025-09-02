@@ -23,6 +23,7 @@ namespace FollowMePeak.ModMenu
         private GameObject _assetBundleMenuInstance;
         private bool _assetBundleLoaded = false;
         private ModMenuUIController _uiController;
+        private UI.SettingsController _settingsController;
         
         // Update Message
         private bool _hasCheckedForUpdate = false;
@@ -548,7 +549,17 @@ namespace FollowMePeak.ModMenu
             _uiController = new ModMenuUIController();
             _uiController.Initialize(_assetBundleMenuInstance);
             
-            Debug.Log("[ModMenu] UI Controller initialized");
+            // Initialize Settings Controller
+            _settingsController = new UI.SettingsController();
+            _settingsController.Initialize(_assetBundleMenuInstance);
+            
+            Debug.Log("[ModMenu] UI Controller and Settings Controller initialized");
+        }
+        
+        public void Update()
+        {
+            // Update Settings Controller for key recording
+            _settingsController?.Update();
         }
         
         public void Cleanup()
