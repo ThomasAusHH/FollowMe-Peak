@@ -72,8 +72,8 @@
     <Reference Include="Newtonsoft.Json">
     <HintPath>..\libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="Assembly-CSharp">
-  <HintPath>..\libs\Assembly-CSharp.dll</HintPath>
+    <Reference Include="Assembly-CSharp_publicized">
+  <HintPath>..\libs\Assembly-CSharp.dll </HintPath>
   </Reference>
   <Reference Include="Zorro.Core.Runtime">
   <HintPath>..\libs\Zorro.Core.Runtime.dll</HintPath>

@@ -95,6 +95,11 @@ namespace FollowMePeak.ModMenu
             }
         }
         
+        public ClimbsTabController GetClimbsTabController()
+        {
+            return _climbsTab;
+        }
+        
         public void Cleanup()
         {
             Debug.Log("[ModMenuUI] Cleaning up UI Controller");

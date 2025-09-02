@@ -31,6 +31,10 @@ namespace FollowMePeak.Managers
             IsRecording = true;
             _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
+            
+            // Reset Fly Detection for new recording (safety reset)
+            Detection.SimpleFlyDetector.ResetForNewRecording();
+            
             _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
             _coroutineRunner.StartCoroutine(RecordClimbRoutine());
         }
@@ -55,11 +59,20 @@ namespace FollowMePeak.Managers
 
             var durationInSeconds = Time.time - _recordingStartTime;
 
+            // CAPTURE FLAGS HERE - BEFORE ASYNC and BEFORE any reset happens!
+            bool wasFlagged = Detection.SimpleFlyDetector.WasDetectedInCurrentRecording;
+            float flaggedScore = Detection.SimpleFlyDetector.MaxScoreInCurrentRecording;
+            string flaggedReason = Detection.SimpleFlyDetector.ReasonForCurrentRecording;
+            
+            // Debug log to verify flag capture
+            _logger.LogInfo($"[FlyDetection] Captured before async: Flagged={wasFlagged}, Score={flaggedScore}, Reason={flaggedReason}");
+
             BepInEx.ThreadingHelper.Instance.StartAsyncInvoke(CreateClimbData);
             return;
 
             Action CreateClimbData()
             {
+                // Use captured flags from closure (they were captured before async)
                 var newClimbData = new ClimbData
                 {
                     Id = Guid.NewGuid(),
@@ -68,6 +81,10 @@ namespace FollowMePeak.Managers
                     DurationInSeconds = durationInSeconds,
                     Points = currentClimb,
                     AscentLevel = Ascents.currentAscent,
+                    // Set detection flags
+                    WasFlagged = wasFlagged,
+                    FlaggedScore = flaggedScore,
+                    FlaggedReason = flaggedReason
                 };
 
                 // Generate share code for the new climb
@@ -78,6 +95,12 @@ namespace FollowMePeak.Managers
             void AfterClimbIsCreated(ClimbData newClimbData)
             {
                 _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
+                
+                // Log detection state if flagged
+                if (newClimbData.WasFlagged)
+                {
+                    _logger.LogWarning($"[FlyDetection] Climb was flagged: Score={newClimbData.FlaggedScore}, Reason={newClimbData.FlaggedReason}");
+                }
 
                 _climbDataService.AddClimb(newClimbData);
                 _climbDataService.SaveClimbsToFile(false);
