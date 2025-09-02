@@ -38,6 +38,27 @@ namespace FollowMePeak.Services
         // Queue a climb for upload
         public void QueueForUpload(ClimbData climbData, string levelId)
         {
+            // Check for fly detection FIRST
+            Detection.SimpleFlyDetector.PerformDetection();
+            if (Detection.SimpleFlyDetector.ShouldFlagClimb())
+            {
+                _logger.LogWarning("[FlyDetection] Climb upload blocked - fly mod detected!");
+                _logger.LogWarning($"[FlyDetection] Detection Score: {Detection.SimpleFlyDetector.DetectionScore}/100");
+                _logger.LogWarning($"[FlyDetection] Reason: {Detection.SimpleFlyDetector.LastDetectionReason}");
+                
+                // Log the climb details that would have been uploaded
+                _logger.LogInfo($"[FlyDetection] Blocked climb: {climbData.Id} in level {levelId}");
+                
+                // Show warning to user if configured
+                if (Plugin.FlyDetection_ShowWarning.Value)
+                {
+                    // This would trigger UI notification - implementation depends on UI system
+                    _logger.LogWarning("[FlyDetection] Climb was not uploaded due to fly mod detection");
+                }
+                
+                return; // Don't queue the climb for upload
+            }
+            
             if (!_configService.Config.EnableCloudSync || !_configService.Config.AutoUpload)
             {
                 _logger.LogInfo("Cloud sync or auto-upload disabled, skipping upload");
@@ -138,6 +159,22 @@ namespace FollowMePeak.Services
             if (item == null || item.ClimbData == null)
             {
                 _logger.LogWarning($"Skipping invalid upload queue item at index {index}");
+                ProcessNextItem(items, index + 1);
+                return;
+            }
+            
+            // Check for fly detection before uploading
+            Detection.SimpleFlyDetector.PerformDetection();
+            if (Detection.SimpleFlyDetector.ShouldFlagClimb())
+            {
+                _logger.LogWarning($"[FlyDetection] Removing climb {item.ClimbData.Id} from queue - fly mod detected during processing");
+                _logger.LogWarning($"[FlyDetection] Score: {Detection.SimpleFlyDetector.DetectionScore}/100");
+                
+                // Remove from queue
+                item.Status = UploadStatus.Failed;
+                item.LastError = "Fly mod detected - climb flagged as private";
+                
+                // Continue with next item
                 ProcessNextItem(items, index + 1);
                 return;
             }
