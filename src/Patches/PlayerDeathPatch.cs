@@ -59,9 +59,46 @@ namespace FollowMePeak.Patches
         {
             try
             {
-                Logger.LogInfo("[Death] Player death detected via Harmony patch");
+                // Check if this is the local player
+                // Try to get the photonView from the character instance
+                var photonViewProperty = __instance.GetType().GetProperty("photonView") ?? 
+                                         __instance.GetType().GetProperty("view");
                 
-                // Notify the recording manager
+                if (photonViewProperty != null)
+                {
+                    var photonView = photonViewProperty.GetValue(__instance);
+                    if (photonView != null)
+                    {
+                        // Check IsMine property
+                        var isMineProperty = photonView.GetType().GetProperty("IsMine");
+                        if (isMineProperty != null)
+                        {
+                            var isMine = (bool)isMineProperty.GetValue(photonView);
+                            if (!isMine)
+                            {
+                                // This is not the local player, ignore
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                // Alternative check: Compare with localCharacter
+                var localCharacterField = __instance.GetType().GetField("localCharacter", 
+                    BindingFlags.Public | BindingFlags.Static);
+                if (localCharacterField != null)
+                {
+                    var localCharacter = localCharacterField.GetValue(null);
+                    if (localCharacter != null && localCharacter != __instance)
+                    {
+                        // This is not the local player, ignore
+                        return;
+                    }
+                }
+                
+                Logger.LogInfo("[Death] Local player death detected via Harmony patch");
+                
+                // Notify the recording manager only for local player
                 if (Plugin.Instance != null)
                 {
                     var recordingManager = Plugin.Instance.GetRecordingManager();

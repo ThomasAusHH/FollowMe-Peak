@@ -97,6 +97,17 @@ namespace FollowMePeak.Detection
                     !go.name.Contains("Ragdoll") && !go.name.Contains("Corpse") && !go.name.Contains("Dead") &&
                     go.activeInHierarchy)
                 {
+                    // In multiplayer, only check local player to reduce spam
+                    if (Character.localCharacter != null)
+                    {
+                        // Try to check if this is the local player's GameObject
+                        var character = go.GetComponent<Character>();
+                        if (character != null && character != Character.localCharacter)
+                        {
+                            // Skip non-local characters in multiplayer
+                            continue;
+                        }
+                    }
                     Vector3 pos = go.transform.position;
                     if (pos == Vector3.zero || pos.y > 1000f || pos.y < -100f) continue;
 
