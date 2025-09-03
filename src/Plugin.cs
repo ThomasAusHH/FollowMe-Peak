@@ -42,6 +42,9 @@ namespace FollowMePeak
         // Harmony instance for proper cleanup
         private Harmony _harmony;
         
+        // Game state tracking
+        private bool _gameEndedThisSession = false;
+        
         // Public access for services (needed by other components)
         public ClimbDataService ClimbDataService => _climbDataService;
         public ClimbRecordingManager GetRecordingManager() => _recordingManager;
@@ -74,6 +77,9 @@ namespace FollowMePeak
             
             // Apply RunManager patch for run start detection
             RunManagerPatch.ApplyPatch(_harmony);
+            
+            // Apply EndGame patch for helicopter ending
+            EndGamePatch.ApplyPatch(_harmony);
             
             Logger.LogInfo("Harmony Patches applied.");
         }
@@ -208,6 +214,13 @@ namespace FollowMePeak
             
             if (scene.name.StartsWith("Level_"))
             {
+                // Reset game ended flag when loading a new level
+                if (_gameEndedThisSession)
+                {
+                    _gameEndedThisSession = false;
+                    Logger.LogInfo("[Level] Resetting game ended flag - new level started");
+                }
+                
                 // Stop any existing recording from previous level
                 if (_recordingManager != null && _recordingManager.IsRecording)
                 {
@@ -317,6 +330,13 @@ namespace FollowMePeak
         // Public method called by RunManagerPatch when a run starts
         public void OnRunStartedFromPatch()
         {
+            // Check if game ended in this session (helicopter ending)
+            if (_gameEndedThisSession)
+            {
+                Logger.LogInfo("[RunManager] Ignoring RUN STARTED after helicopter ending");
+                return;
+            }
+            
             Logger.LogInfo("[RunManager] RUN STARTED - Activating fly detection and climb recording");
             
             // Start fly detection
@@ -331,6 +351,47 @@ namespace FollowMePeak
             {
                 Logger.LogError("RecordingManager is null when trying to start recording!");
             }
+        }
+        
+        // Public method called by EndGamePatch when helicopter ending triggers
+        public void OnHelicopterEnding()
+        {
+            // Additional safety check - should already be caught in EndGamePatch
+            if (Managers.ClimbRecordingManager.PlayerDiedThisSession)
+            {
+                Logger.LogInfo("[Helicopter] Ignoring helicopter ending - player already died this session");
+                return;
+            }
+            
+            Logger.LogInfo("[Helicopter] Game ending detected - saving Peak climb");
+            
+            // Check if we're actually in the right scene/level
+            var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            Logger.LogInfo($"[Helicopter] Current scene: {currentScene}");
+            
+            // Save the final climb with Peak biome
+            if (_recordingManager != null && _recordingManager.IsRecording)
+            {
+                // Force save even if recording is short
+                Logger.LogInfo($"[Helicopter] Recording active, saving as Peak");
+                _recordingManager.SaveCurrentClimb("Peak");
+                Logger.LogInfo("[Helicopter] Final Peak climb saved");
+            }
+            else if (_recordingManager != null)
+            {
+                Logger.LogWarning("[Helicopter] No active recording to save for Peak");
+            }
+            else
+            {
+                Logger.LogError("[Helicopter] RecordingManager is null!");
+            }
+            
+            // Stop fly detection
+            Detection.SimpleFlyDetector.OnSceneChanged("GameEnded");
+            
+            // Set flag to prevent new recordings until next level
+            _gameEndedThisSession = true;
+            Logger.LogInfo("[Helicopter] Recording disabled until next level load");
         }
         
         public void OnCampfireLit(string biomeName)

@@ -12,7 +12,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             Beach,
             Tropics,
             AlpineMesa,
-            Caldera
+            Caldera,
+            Peak
         }
         
         private BiomeFilter _currentFilter = BiomeFilter.All;
@@ -56,6 +57,10 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     return normalizedBiome.Contains("caldera") || 
                            normalizedBiome.Contains("volcano") || 
                            normalizedBiome.Contains("summit");
+                    
+                case BiomeFilter.Peak:
+                    return normalizedBiome.Contains("peak") || 
+                           normalizedBiome.Contains("kiln");
                     
                 default:
                     return true;

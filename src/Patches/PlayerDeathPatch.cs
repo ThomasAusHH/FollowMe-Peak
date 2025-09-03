@@ -26,8 +26,10 @@ namespace FollowMePeak.Patches
                     if (rpca_die_method != null)
                     {
                         var postfix = AccessTools.Method(typeof(PlayerDeathPatch), nameof(OnPlayerDied_Postfix));
-                        harmony.Patch(rpca_die_method, postfix: new HarmonyMethod(postfix));
-                        Logger.LogInfo("Successfully patched RPCA_Die method for death detection");
+                        // Use high priority to ensure death is detected before other patches
+                        var harmonyMethod = new HarmonyMethod(postfix) { priority = Priority.High };
+                        harmony.Patch(rpca_die_method, postfix: harmonyMethod);
+                        Logger.LogInfo("Successfully patched RPCA_Die method for death detection with high priority");
                     }
                     else
                     {
@@ -39,8 +41,10 @@ namespace FollowMePeak.Patches
                     if (die_method != null)
                     {
                         var postfix = AccessTools.Method(typeof(PlayerDeathPatch), nameof(OnPlayerDied_Postfix));
-                        harmony.Patch(die_method, postfix: new HarmonyMethod(postfix));
-                        Logger.LogInfo("Successfully patched Die method for death detection");
+                        // Use high priority to ensure death is detected before other patches
+                        var harmonyMethod = new HarmonyMethod(postfix) { priority = Priority.High };
+                        harmony.Patch(die_method, postfix: harmonyMethod);
+                        Logger.LogInfo("Successfully patched Die method for death detection with high priority");
                     }
                 }
                 else

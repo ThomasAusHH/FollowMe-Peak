@@ -19,6 +19,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private Toggle _tropicsToggle;
         private Toggle _alpineMesaToggle;
         private Toggle _calderaToggle;
+        private Toggle _peakToggle;
         private TMP_InputField _climbCodeInput;
         private TMP_InputField _ascentInput;
         private Button _climbCodeSearchButton;
@@ -104,6 +105,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 _tropicsToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "TropicsToggle");
                 _alpineMesaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "AlpineMesaToggle");
                 _calderaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "CalderaToggle");
+                _peakToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "PeakToggle");
             }
             
             // Find Search Elements
@@ -411,6 +413,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetupToggle(_tropicsToggle, toggleGroup, ClimbFilterManager.BiomeFilter.Tropics);
             SetupToggle(_alpineMesaToggle, toggleGroup, ClimbFilterManager.BiomeFilter.AlpineMesa);
             SetupToggle(_calderaToggle, toggleGroup, ClimbFilterManager.BiomeFilter.Caldera);
+            SetupToggle(_peakToggle, toggleGroup, ClimbFilterManager.BiomeFilter.Peak);
         }
         
         private void SetupToggle(Toggle toggle, ToggleGroup group, ClimbFilterManager.BiomeFilter filter)
@@ -458,6 +461,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     return "Alpine"; // Or "Mesa" - API should handle both
                 case ClimbFilterManager.BiomeFilter.Caldera:
                     return "Caldera";
+                case ClimbFilterManager.BiomeFilter.Peak:
+                    return "Peak";
                 default:
                     return "";
             }
@@ -844,6 +849,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetupVisibilityToggle(climbItem, climb);
             SetupCopyButton(climbItem, climb);
             SetOfflineIndicator(climbItem, climb);
+            SetDeathClimbIndicator(climbItem, climb);
             
             Debug.Log($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s, IsOffline: {!climb.IsFromCloud}");
         }
@@ -871,6 +877,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 iconToShow = biomeIconArea.Find("AlpineMesaIcon");
             else if (normalizedBiome.Contains("caldera"))
                 iconToShow = biomeIconArea.Find("CalderaIcon");
+            else if (normalizedBiome.Contains("peak") || normalizedBiome.Contains("kiln"))
+                iconToShow = biomeIconArea.Find("PeakIcon");
             else
                 iconToShow = biomeIconArea.Find("BeachIcon"); // Default
             
@@ -930,6 +938,29 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         private void SetupCopyButton(GameObject item, ClimbData climb)
         {
             var copyButton = item.transform.Find("ClimbShareCodeCopyButton")?.GetComponent<Button>();
+            var shareCodeText = item.transform.Find("ClimbShareCode");
+            
+            // Hide share code elements for death climbs
+            if (climb.WasDeathClimb)
+            {
+                if (copyButton != null)
+                    copyButton.gameObject.SetActive(false);
+                if (shareCodeText != null)
+                    shareCodeText.gameObject.SetActive(false);
+                return;
+            }
+            
+            // Show share code text for normal climbs
+            if (shareCodeText != null)
+            {
+                shareCodeText.gameObject.SetActive(true);
+                var textComponent = shareCodeText.GetComponent<TextMeshProUGUI>();
+                if (textComponent != null && !string.IsNullOrEmpty(climb.ShareCode))
+                {
+                    textComponent.text = climb.ShareCode;
+                }
+            }
+            
             if (copyButton != null)
             {
                 // Ensure share code is generated
@@ -974,6 +1005,28 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
         }
         
+        private void SetDeathClimbIndicator(GameObject item, ClimbData climb)
+        {
+            // Find the DeathImage in the prefab item
+            Transform deathImage = item.transform.Find("DeathImage");
+            
+            if (deathImage != null)
+            {
+                // Show image only for death climbs
+                bool isDeathClimb = climb.WasDeathClimb;
+                deathImage.gameObject.SetActive(isDeathClimb);
+                
+                if (isDeathClimb)
+                {
+                    Debug.Log($"[ClimbsTab] Showing death indicator for death climb {climb.Id}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[ClimbsTab] DeathImage not found in climb item for climb {climb.Id}");
+            }
+        }
+        
         private System.Collections.Generic.List<ClimbData> GetClimbsToDisplay()
         {
             var displayClimbs = new System.Collections.Generic.List<ClimbData>();
@@ -995,10 +1048,16 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             else
             {
                 // Combined mode: server climbs + local climbs
-                // Server climbs are already filtered by the API call, so add them directly
-                displayClimbs.AddRange(_serverLoader.CurrentPageClimbs);
+                // Apply filter to server climbs as well to handle race conditions
+                // (e.g., when filter changes quickly and wrong data comes back from server)
+                var filteredServerClimbs = _filterManager.FilterClimbs(_serverLoader.CurrentPageClimbs);
+                if (_serverLoader.CurrentPageClimbs.Count != filteredServerClimbs.Count)
+                {
+                    Debug.Log($"[ClimbsTab] Filtered server climbs: {_serverLoader.CurrentPageClimbs.Count} -> {filteredServerClimbs.Count} (Filter: {_filterManager.CurrentFilter})");
+                }
+                displayClimbs.AddRange(filteredServerClimbs);
                 
-                // Add local climbs that are not from cloud (apply filter to local climbs only)
+                // Add local climbs that are not from cloud (apply filter to local climbs)
                 var localClimbs = _climbDataService.GetAllClimbs()
                     .Where(c => !c.IsFromCloud);
                 var filteredLocalClimbs = _filterManager.FilterClimbs(localClimbs.ToList());

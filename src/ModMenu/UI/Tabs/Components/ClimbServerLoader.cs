@@ -20,6 +20,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         private string _lastSortOrder = "desc";        // Default
         private bool _isLoading = false;
         private List<ClimbData> _currentPageClimbs = new List<ClimbData>();
+        private int _currentRequestId = 0;  // Track request ID to ignore outdated responses
         
         public event Action<List<ClimbData>> OnServerClimbsLoaded;
         public event Action<string> OnLoadError;
@@ -92,12 +93,6 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         private void LoadClimbsFromServer(string levelId, string biomeFilter = "", int? ascentFilter = null, 
             string peakCodeFilter = "", string sortBy = "created_at", string sortOrder = "desc")
         {
-            if (_isLoading)
-            {
-                Debug.Log("[ClimbServerLoader] Already loading, skipping");
-                return;
-            }
-            
             if (_apiService == null)
             {
                 Debug.LogError("[ClimbServerLoader] API Service not available");
@@ -112,8 +107,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                 return;
             }
             
+            // Increment request ID for this new request
+            _currentRequestId++;
+            int thisRequestId = _currentRequestId;
+            
             _isLoading = true;
-            Debug.Log($"[ClimbServerLoader] Loading climbs - Level: {levelId}, Biome: '{biomeFilter}', Ascent: '{ascentFilter}', Peak: '{peakCodeFilter}', Sort: {sortBy} {sortOrder}");
+            Debug.Log($"[ClimbServerLoader] Request #{thisRequestId} - Loading climbs - Level: {levelId}, Biome: '{biomeFilter}', Ascent: '{ascentFilter}', Peak: '{peakCodeFilter}', Sort: {sortBy} {sortOrder}");
             
             // Clear previous server climbs
             _currentPageClimbs.Clear();
@@ -121,11 +120,18 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             // Request first 25 climbs using the DownloadClimbs method with biome filter
             _apiService.DownloadClimbs(levelId, (downloadedClimbs, error, meta) =>
             {
+                // Check if this response is still relevant
+                if (thisRequestId != _currentRequestId)
+                {
+                    Debug.Log($"[ClimbServerLoader] Ignoring outdated response from request #{thisRequestId} (current: #{_currentRequestId})");
+                    return;
+                }
+                
                 _isLoading = false;
                 
                 if (downloadedClimbs != null)
                 {
-                    Debug.Log($"[ClimbServerLoader] Received {downloadedClimbs.Count} climbs from server");
+                    Debug.Log($"[ClimbServerLoader] Request #{thisRequestId} completed - Received {downloadedClimbs.Count} climbs from server");
                     
                     // Store climbs for display
                     _currentPageClimbs.Clear();
@@ -175,7 +181,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                 else
                 {
                     string errorMsg = error ?? "Failed to load climbs from server";
-                    Debug.LogError($"[ClimbServerLoader] {errorMsg}");
+                    Debug.LogError($"[ClimbServerLoader] Request #{thisRequestId} failed - {errorMsg}");
                     OnLoadError?.Invoke(errorMsg);
                 }
             }, 25, 0, "", biomeFilter, peakCodeFilter, sortBy, sortOrder, ascentFilter);
@@ -193,6 +199,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             _lastSortBy = "created_at";      // Reset to default
             _lastSortOrder = "desc";          // Reset to default
             _isLoading = false;
+            _currentRequestId = 0;            // Reset request counter
             _currentPageClimbs.Clear();
             
             // Trigger event to update UI

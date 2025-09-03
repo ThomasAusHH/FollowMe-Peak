@@ -17,6 +17,7 @@ namespace FollowMePeak.ModMenu.UI
         private Button _applyButton;
         private Button _resetButton;
         private Button _closeButton;
+        private Toggle _saveDeathClimbToggle;
         
         // State
         private bool _isRecording = false;
@@ -222,6 +223,39 @@ namespace FollowMePeak.ModMenu.UI
                 Debug.LogWarning("[SettingsController] Close button not found");
             }
             
+            // Find Save Death Climb Toggle - try both names (in case of typo)
+            _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuSaveDeathClimbToggle");
+            if (_saveDeathClimbToggle == null)
+            {
+                // Try alternative name in case of typo in UI
+                _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuDaveDeathClimbToggle");
+            }
+            if (_saveDeathClimbToggle == null && _settingsMenuPanel != null)
+            {
+                // Try relative to panel
+                var toggle = _settingsMenuPanel.transform.Find("SettingsMenuSaveDeathClimbToggle");
+                if (toggle == null)
+                {
+                    toggle = _settingsMenuPanel.transform.Find("SettingsMenuDaveDeathClimbToggle");
+                }
+                if (toggle != null)
+                {
+                    _saveDeathClimbToggle = toggle.GetComponent<Toggle>();
+                }
+            }
+            
+            if (_saveDeathClimbToggle != null)
+            {
+                _saveDeathClimbToggle.isOn = Plugin.SaveDeathClimbs.Value;
+                _saveDeathClimbToggle.onValueChanged.RemoveAllListeners();
+                _saveDeathClimbToggle.onValueChanged.AddListener(OnSaveDeathClimbsChanged);
+                Debug.Log($"[SettingsController] Save Death Climb toggle found and initialized - Value: {Plugin.SaveDeathClimbs.Value}");
+            }
+            else
+            {
+                Debug.LogWarning("[SettingsController] Save Death Climb toggle not found");
+            }
+            
             // Initialize current key display
             _originalKey = Plugin.ModMenuToggleKey.Value;
             _pendingKey = _originalKey;
@@ -423,6 +457,13 @@ namespace FollowMePeak.ModMenu.UI
                 return "Caps Lock";
             
             return name;
+        }
+        
+        private void OnSaveDeathClimbsChanged(bool value)
+        {
+            Plugin.SaveDeathClimbs.Value = value;
+            Plugin.Instance.Config.Save();
+            Debug.Log($"[SettingsController] Save Death Climbs toggled: {value}");
         }
     }
 }

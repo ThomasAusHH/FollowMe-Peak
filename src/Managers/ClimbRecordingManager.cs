@@ -18,6 +18,10 @@ namespace FollowMePeak.Managers
         private float _recordingStartTime;
         private MonoBehaviour _coroutineRunner;
         private bool _wasDeathDetected = false;
+        
+        // Static flag to track if death has occurred in this session
+        // This prevents helicopter detection after death
+        public static bool PlayerDiedThisSession { get; private set; } = false;
 
         public bool IsRecording { get; private set; } = false;
         public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
@@ -47,6 +51,9 @@ namespace FollowMePeak.Managers
             _recordingStartTime = Time.time;
             _wasDeathDetected = false;
             
+            // Reset static death flag when starting a new recording (new level/run)
+            PlayerDiedThisSession = false;
+            
             // Reset Fly Detection for new recording (safety reset)
             Detection.SimpleFlyDetector.ResetForNewRecording();
             
@@ -73,6 +80,12 @@ namespace FollowMePeak.Managers
 
         public void SaveCurrentClimb(string biomeName)
         {
+            // Special handling for Peak ending (helicopter)
+            if (biomeName == "Peak")
+            {
+                _logger.LogInfo("[Helicopter] Saving Peak climb from helicopter ending");
+            }
+            
             StopRecording();
 
             var currentClimb = _currentRecordedClimb;
@@ -162,6 +175,10 @@ namespace FollowMePeak.Managers
         // Public method to be called when player dies (kept for Harmony patch compatibility)
         public void OnPlayerDeath()
         {
+            // Set static flag immediately to prevent helicopter detection
+            PlayerDiedThisSession = true;
+            _logger.LogInfo("[Death] Death flag set - helicopter detection disabled");
+            
             if (IsRecording)
             {
                 _wasDeathDetected = true;
