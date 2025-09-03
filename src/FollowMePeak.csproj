@@ -78,6 +78,9 @@
   <Reference Include="Zorro.Core.Runtime">
   <HintPath>..\libs\Zorro.Core.Runtime.dll</HintPath>
 </Reference>
+  <Reference Include="PhotonUnityNetworking">
+  <HintPath>..\libs\PhotonUnityNetworking.dll</HintPath>
+</Reference>
   </ItemGroup>
 
   <ItemGroup>

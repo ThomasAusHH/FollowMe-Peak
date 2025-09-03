@@ -5,6 +5,7 @@ using BepInEx.Logging;
 using UnityEngine;
 using FollowMePeak.Models;
 using FollowMePeak.Services;
+using Zorro.Core;
 
 namespace FollowMePeak.Managers
 {
@@ -16,6 +17,7 @@ namespace FollowMePeak.Managers
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
         private float _recordingStartTime;
         private MonoBehaviour _coroutineRunner;
+        private bool _wasDeathDetected = false;
 
         public bool IsRecording { get; private set; } = false;
         public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
@@ -31,6 +33,7 @@ namespace FollowMePeak.Managers
             IsRecording = true;
             _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
+            _wasDeathDetected = false;
             
             // Reset Fly Detection for new recording (safety reset)
             Detection.SimpleFlyDetector.ResetForNewRecording();
@@ -52,6 +55,14 @@ namespace FollowMePeak.Managers
 
             var currentClimb = _currentRecordedClimb;
             if (currentClimb.Count < 2) return;
+            
+            // Check if death was detected and if we should save death climbs
+            if (_wasDeathDetected && !Plugin.SaveDeathClimbs.Value)
+            {
+                _logger.LogInfo("Climb not saved: Player died during recording and SaveDeathClimbs is disabled.");
+                _currentRecordedClimb = [];
+                return;
+            }
 
             // Reset the current recorded climb
             // (but don't clear the list, we need that list to save it; instead assign a new empty list)
@@ -84,7 +95,9 @@ namespace FollowMePeak.Managers
                     // Set detection flags
                     WasFlagged = wasFlagged,
                     FlaggedScore = flaggedScore,
-                    FlaggedReason = flaggedReason
+                    FlaggedReason = flaggedReason,
+                    // Set death flag
+                    WasDeathClimb = _wasDeathDetected
                 };
 
                 // Generate share code for the new climb
@@ -100,6 +113,11 @@ namespace FollowMePeak.Managers
                 if (newClimbData.WasFlagged)
                 {
                     _logger.LogWarning($"[FlyDetection] Climb was flagged: Score={newClimbData.FlaggedScore}, Reason={newClimbData.FlaggedReason}");
+                }
+                
+                if (newClimbData.WasDeathClimb)
+                {
+                    _logger.LogWarning($"[Death] Climb was saved where player died (will not be uploaded to cloud)");
                 }
 
                 _climbDataService.AddClimb(newClimbData);
@@ -119,10 +137,62 @@ namespace FollowMePeak.Managers
             Plugin.Instance.ShowTagSelectionForNewClimb(climbData);
         }
 
+        // Public method to be called when player dies (kept for Harmony patch compatibility)
+        public void OnPlayerDeath()
+        {
+            if (IsRecording)
+            {
+                _wasDeathDetected = true;
+                _logger.LogInfo("[Death] Player death detected during recording");
+                
+                // Save the death climb if configured to do so
+                if (Plugin.SaveDeathClimbs.Value && _currentRecordedClimb.Count >= 2)
+                {
+                    _logger.LogInfo("[Death] Saving death climb as configured");
+                    // We need to get the biome name - use "Death" as fallback if we can't determine it
+                    string biomeName = GetCurrentBiomeName();
+                    SaveCurrentClimb(biomeName);
+                }
+                else
+                {
+                    StopRecording();
+                    _logger.LogInfo("[Death] Death climb not saved (SaveDeathClimbs is disabled or too few points)");
+                }
+            }
+        }
+        
+        // Helper method to get current biome name
+        private string GetCurrentBiomeName()
+        {
+            // Try to get biome name from current segment
+            try
+            {
+                if (Zorro.Core.Singleton<MapHandler>.Instance != null)
+                {
+                    var currentSegment = Zorro.Core.Singleton<MapHandler>.Instance.GetCurrentSegment();
+                    return System.Enum.GetName(typeof(Segment), currentSegment) ?? "Death";
+                }
+            }
+            catch
+            {
+                // Fallback if we can't get the segment
+            }
+            return "Death";
+        }
+
         private IEnumerator RecordClimbRoutine()
         {
             while (IsRecording)
             {
+                // Check if player died
+                if (Character.localCharacter != null && Character.localCharacter.data.dead)
+                {
+                    _wasDeathDetected = true;
+                    _logger.LogInfo("[Death] Player death detected during recording");
+                    StopRecording();
+                    yield break;
+                }
+                
                 // TODO: Is this still valid even if the player is in third-person view?
                 var camera = Camera.main;
                 if (camera != null)

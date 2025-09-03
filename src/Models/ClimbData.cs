@@ -29,6 +29,9 @@ namespace FollowMePeak.Models
         public float FlaggedScore { get; set; } = 0f;
         public string FlaggedReason { get; set; } = "";
         
+        // Death climb flag - climb where player died  
+        public bool WasDeathClimb { get; set; } = false;
+        
         // Generate user-friendly save name if empty
         public string GetDisplayName()
         {
@@ -151,6 +154,9 @@ namespace FollowMePeak.Models
             
             writer.WritePropertyName("FlaggedReason");
             writer.WriteValue(value.FlaggedReason);
+            
+            writer.WritePropertyName("WasDeathClimb");
+            writer.WriteValue(value.WasDeathClimb);
 
             /*
             // Tags property (disabled for now)
@@ -221,6 +227,9 @@ namespace FollowMePeak.Models
                             break;
                         case "FlaggedReason":
                             climbData.FlaggedReason = serializer.Deserialize<string>(reader);
+                            break;
+                        case "WasDeathClimb":
+                            climbData.WasDeathClimb = serializer.Deserialize<bool>(reader);
                             break;
                         /*
                         // Tags property (disabled for now)

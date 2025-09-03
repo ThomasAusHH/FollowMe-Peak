@@ -38,6 +38,13 @@ namespace FollowMePeak.Services
         // Queue a climb for upload
         public void QueueForUpload(ClimbData climbData, string levelId)
         {
+            // Check if this is a death climb - these should never be uploaded
+            if (climbData.WasDeathClimb)
+            {
+                _logger.LogInfo("[Death] Death climb will not be uploaded to cloud");
+                return;
+            }
+            
             // Log if climb was flagged, but still upload it
             if (climbData.WasFlagged)
             {

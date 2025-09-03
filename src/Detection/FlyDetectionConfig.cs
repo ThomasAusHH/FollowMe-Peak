@@ -9,7 +9,7 @@ namespace FollowMePeak.Detection
         public const bool ShouldAutoFlagClimbs = true;
         public const bool ShouldShowWarning = true;
         public const float DetectionCheckInterval = 0.5f;
-        public const float SpawnGracePeriod = 30f;
+        public const float SpawnGracePeriod = 15f;
         public const int MinGravityBodies = 20;
         
         // Legacy properties for backward compatibility (now just return constants)

@@ -21,6 +21,9 @@ namespace FollowMePeak
 
         // Controls Configuration
         public static BepInEx.Configuration.ConfigEntry<KeyCode> ModMenuToggleKey;
+        
+        // Gameplay Configuration  
+        public static BepInEx.Configuration.ConfigEntry<bool> SaveDeathClimbs;
 
         // Existing services
         private ClimbDataService _climbDataService;
@@ -41,6 +44,7 @@ namespace FollowMePeak
         
         // Public access for services (needed by other components)
         public ClimbDataService ClimbDataService => _climbDataService;
+        public ClimbRecordingManager GetRecordingManager() => _recordingManager;
 
         private void Awake()
         {
@@ -64,6 +68,10 @@ namespace FollowMePeak
             // Create Harmony instance with plugin GUID
             _harmony = new Harmony(Info.Metadata.GUID);
             _harmony.PatchAll(typeof(PluginPatches));
+            
+            // Apply death detection patches
+            PlayerDeathPatch.ApplyPatch(_harmony);
+            
             Logger.LogInfo("Harmony Patches applied.");
         }
 
@@ -112,6 +120,14 @@ namespace FollowMePeak
                 "ModMenuToggleKey", 
                 KeyCode.F1, 
                 "Key to toggle the mod menu"
+            );
+            
+            // Gameplay Configuration
+            SaveDeathClimbs = Config.Bind(
+                "Gameplay",
+                "SaveDeathClimbs", 
+                false,
+                "Save climbs where the player died (these will not be uploaded to cloud)"
             );
             
             // No need to initialize FlyDetectionConfig anymore - it uses constants
@@ -298,6 +314,13 @@ namespace FollowMePeak
 
         private void UploadIfAutoUploadEnabled(ClimbData climbData)
         {
+            // Don't upload death climbs
+            if (climbData.WasDeathClimb)
+            {
+                Logger.LogInfo($"[Death] Death climb {climbData.Id} will not be uploaded to cloud");
+                return;
+            }
+            
             if (_serverConfigService.Config.EnableCloudSync && _serverConfigService.Config.AutoUpload)
             {
                 _climbUploadService.QueueForUpload(climbData, _climbDataService.CurrentLevelID);
