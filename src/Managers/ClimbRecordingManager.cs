@@ -29,7 +29,19 @@ namespace FollowMePeak.Managers
 
         public void StartRecording()
         {
-            if (IsRecording) return;
+            if (IsRecording) 
+            {
+                _logger.LogWarning("Recording already active - stopping previous recording before starting new one");
+                StopRecording();
+            }
+            
+            // Check if we're in a valid level
+            if (!UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.StartsWith("Level_"))
+            {
+                _logger.LogWarning("StartRecording called but not in a Level scene");
+                return;
+            }
+            
             IsRecording = true;
             _currentRecordedClimb = [];
             _recordingStartTime = Time.time;
@@ -38,7 +50,7 @@ namespace FollowMePeak.Managers
             // Reset Fly Detection for new recording (safety reset)
             Detection.SimpleFlyDetector.ResetForNewRecording();
             
-            _logger.LogInfo("Kletter-Aufzeichnung gestartet!");
+            _logger.LogInfo("[ClimbRecording] Started by RUN STARTED event!");
             _coroutineRunner.StartCoroutine(RecordClimbRoutine());
         }
 
@@ -46,7 +58,17 @@ namespace FollowMePeak.Managers
         {
             if (!IsRecording) return;
             IsRecording = false;
-            _logger.LogInfo($"Aufzeichnung gestoppt. {_currentRecordedClimb.Count} Punkte zwischengespeichert.");
+            
+            // Clear recorded data if we have less than minimum points (incomplete climb)
+            if (_currentRecordedClimb.Count < 2)
+            {
+                _logger.LogInfo($"Recording stopped with insufficient data ({_currentRecordedClimb.Count} points) - clearing");
+                _currentRecordedClimb = new List<Vector3>();
+            }
+            else
+            {
+                _logger.LogInfo($"Recording stopped. {_currentRecordedClimb.Count} points cached for potential save.");
+            }
         }
 
         public void SaveCurrentClimb(string biomeName)

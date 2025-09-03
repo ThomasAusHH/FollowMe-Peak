@@ -26,10 +26,9 @@ namespace FollowMePeak.Detection
         private static Dictionary<string, int> _consecutiveSustainedVelocityFrames = new Dictionary<string, int>();
         private static int _consecutiveKinematicFrames = 0;
 
-        // Spawn protection
-        private static float _gameStartTime = -1f;
-        private static float _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
-        private static bool _isInGracePeriod = true;
+        // Run start tracking
+        private static float _runStartTime = -1f;
+        private static bool _detectionEnabled = false;
         private static string _lastSceneName = "";
         private static bool _isInValidLevel = false;
         
@@ -48,7 +47,28 @@ namespace FollowMePeak.Detection
             
             // Configuration is now loaded from FlyDetectionConfig constants
             _checkInterval = FlyDetectionConfig.DetectionCheckInterval;
-            _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
+        }
+        
+        /// <summary>
+        /// Called when the run starts to enable detection
+        /// </summary>
+        public static void OnRunStarted()
+        {
+            if (!_isInValidLevel) 
+            {
+                _logger.LogWarning("[FlyDetection] OnRunStarted called but not in valid level");
+                return;
+            }
+            
+            _runStartTime = Time.time;
+            _detectionEnabled = true;
+            _logger.LogInfo("[FlyDetection] Detection activated by RUN STARTED event");
+            
+            // Reset detection state
+            _detectionScore = 0f;
+            IsFlyDetected = false;
+            _activeFlags.Clear();
+            _lastReason = "Detection just started";
         }
         
         /// <summary>
@@ -57,24 +77,12 @@ namespace FollowMePeak.Detection
         public static void PerformDetection()
         {
             if (!_isInValidLevel) return;
-
-            // Grace period management
-            if (_gameStartTime < 0)
-            {
-                _gameStartTime = Time.time;
-                _isInGracePeriod = true;
-                _logger.LogInfo($"[FlyDetection] Grace period started ({_spawnGracePeriod} seconds)");
-            }
             
-            if (_isInGracePeriod)
+            // Check if detection is enabled
+            if (!_detectionEnabled)
             {
-                if (Time.time - _gameStartTime < _spawnGracePeriod)
-                {
-                    _lastReason = $"Grace period active ({_spawnGracePeriod - (Time.time - _gameStartTime):F1}s remaining)";
-                    return;
-                }
-                _isInGracePeriod = false;
-                _logger.LogInfo("[FlyDetection] Grace period ended - detection active");
+                _lastReason = "Waiting for RUN STARTED event";
+                return;
             }
             
             // Rate limit checks
@@ -340,18 +348,20 @@ namespace FollowMePeak.Detection
             
             if (!_isInValidLevel)
             {
+                _detectionEnabled = false;
                 IsFlyDetected = false;
                 _detectionScore = 0;
                 _activeFlags.Clear();
-                _gameStartTime = -1f;
+                _runStartTime = -1f;
             }
             else if (sceneName != _lastSceneName)
             {
-                _gameStartTime = -1f; 
-                _isInGracePeriod = true;
+                _detectionEnabled = false;  // Wait for RUN STARTED
+                _runStartTime = -1f;
                 IsFlyDetected = false;
                 _detectionScore = 0;
                 _activeFlags.Clear();
+                _logger.LogInfo("[FlyDetection] New level loaded - waiting for RUN STARTED event");
             }
             _lastSceneName = sceneName;
         }

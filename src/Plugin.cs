@@ -72,6 +72,9 @@ namespace FollowMePeak
             // Apply death detection patches
             PlayerDeathPatch.ApplyPatch(_harmony);
             
+            // Apply RunManager patch for run start detection
+            RunManagerPatch.ApplyPatch(_harmony);
+            
             Logger.LogInfo("Harmony Patches applied.");
         }
 
@@ -205,11 +208,26 @@ namespace FollowMePeak
             
             if (scene.name.StartsWith("Level_"))
             {
+                // Stop any existing recording from previous level
+                if (_recordingManager != null && _recordingManager.IsRecording)
+                {
+                    Logger.LogInfo($"Stopping previous recording due to scene change to {scene.name}");
+                    _recordingManager.StopRecording();
+                }
+                
                 StartCoroutine(InitializePathSystem(scene));
-                _recordingManager.StartRecording();
+                // Recording now starts via RunManager event, not here
+                Logger.LogInfo($"Level {scene.name} loaded - waiting for RUN STARTED event");
             }
             else
             {
+                // Stop recording when leaving to non-level scenes (Menu, Airport, etc.)
+                if (_recordingManager != null && _recordingManager.IsRecording)
+                {
+                    Logger.LogInfo($"Stopping recording due to leaving level (new scene: {scene.name})");
+                    _recordingManager.StopRecording();
+                }
+                
                 _climbDataService.CurrentLevelID = "";
                 _visualizationManager.ClearVisuals();
             }
@@ -296,6 +314,25 @@ namespace FollowMePeak
             }
         }
 
+        // Public method called by RunManagerPatch when a run starts
+        public void OnRunStartedFromPatch()
+        {
+            Logger.LogInfo("[RunManager] RUN STARTED - Activating fly detection and climb recording");
+            
+            // Start fly detection
+            Detection.SimpleFlyDetector.OnRunStarted();
+            
+            // Start climb recording
+            if (_recordingManager != null)
+            {
+                _recordingManager.StartRecording();
+            }
+            else
+            {
+                Logger.LogError("RecordingManager is null when trying to start recording!");
+            }
+        }
+        
         public void OnCampfireLit(string biomeName)
         {
             _recordingManager.SaveCurrentClimb(biomeName);
