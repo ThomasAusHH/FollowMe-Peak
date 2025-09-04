@@ -14,11 +14,11 @@ using FollowMePeak.Utils;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.2")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.3")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
-        public const string MOD_VERSION = "1.0.2";
+        public const string MOD_VERSION = "1.0.3";
 
         // Controls Configuration
         public static BepInEx.Configuration.ConfigEntry<KeyCode> ModMenuToggleKey;

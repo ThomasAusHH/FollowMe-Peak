@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using FollowMePeak.ModMenu.UI.Helpers;
 using FollowMePeak.Utils;

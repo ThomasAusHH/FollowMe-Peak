@@ -60,6 +60,21 @@ If the plugin doesn't work:
 
 ## Changelog
 
+### v1.0.3
+
+**New Features:**
+- **Complete climb tracking from kiln to peak** - Track your entire journey from the starting kiln all the way to the peak, fulfilling the dream of peaking!
+- **Improved climb timing** - Climbs now start precisely with the "RUN STARTED" sequence for better accuracy
+- **Death tracking** - Climbs with deaths can now be saved (configurable in settings)
+  - Death climbs are marked with a small death icon
+  - Death climbs have no share code and won't be uploaded to the cloud
+- **Global mod logger** - Implemented centralized logging system with configurable log levels in BepInEx config
+
+**Improvements:**
+- Climb tracking automatically stops on death or return to home
+- Better climb start/stop detection for more accurate path recording
+- Enhanced debugging capabilities through the new logging system
+
 ### v1.0.2
 
 **New Features:**
