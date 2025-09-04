@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using BepInEx;
-using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
 using FollowMePeak.Utils;
@@ -10,11 +9,11 @@ namespace FollowMePeak.Services
 {
     public class ServerConfigService
     {
-        private readonly ManualLogSource _logger;
+        private readonly ModLogger _logger;
         private readonly string _configPath;
         private ServerConfig _config;
 
-        public ServerConfigService(ManualLogSource logger)
+        public ServerConfigService(ModLogger logger)
         {
             _logger = logger;
             _configPath = Path.Combine(Paths.PluginPath, "FollowMePeak_Data", "server_config.json");
@@ -30,18 +29,18 @@ namespace FollowMePeak.Services
                 {
                     string json = File.ReadAllText(_configPath);
                     _config = JsonConvert.DeserializeObject<ServerConfig>(json, CommonJsonSettings.Default);
-                    _logger.LogInfo("Server configuration loaded successfully");
+                    _logger.Info("Server configuration loaded successfully");
                 }
                 else
                 {
                     _config = CreateDefaultConfig();
                     SaveConfig();
-                    _logger.LogInfo("Created default server configuration");
+                    _logger.Info("Created default server configuration");
                 }
             }
             catch (Exception e)
             {
-                _logger.LogError($"Failed to load server config: {e.Message}");
+                _logger.Error($"Failed to load server config: {e.Message}");
                 _config = CreateDefaultConfig();
             }
 
@@ -109,7 +108,7 @@ namespace FollowMePeak.Services
         {
             _config.EnableCloudSync = enabled;
             SaveConfig();
-            _logger.LogInfo($"Cloud sync {(enabled ? "enabled" : "disabled")}");
+            _logger.Info($"Cloud sync {(enabled ? "enabled" : "disabled")}");
         }
 
         public void SetPlayerName(string playerName)
@@ -129,7 +128,7 @@ namespace FollowMePeak.Services
 
             _config.PlayerName = playerName;
             SaveConfig();
-            _logger.LogInfo($"Player name updated to: {_config.PlayerName}");
+            _logger.Info($"Player name updated to: {_config.PlayerName}");
         }
 
         // Auto upload/download settings are now hardcoded - methods removed
@@ -140,7 +139,7 @@ namespace FollowMePeak.Services
             _config.UploadsThisHour = 0;
             _config.LastUploadReset = DateTime.Now;
             SaveConfig();
-            _logger.LogInfo("Upload rate limit reset");
+            _logger.Info("Upload rate limit reset");
         }
 
         // Validate configuration

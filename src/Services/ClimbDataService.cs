@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BepInEx;
-using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
 using FollowMePeak.Utils;
@@ -11,11 +10,11 @@ namespace FollowMePeak.Services
 {
     public class ClimbDataService
     {
-        private readonly ManualLogSource _logger;
+        private readonly ModLogger _logger;
         private List<ClimbData> _allLoadedClimbs = new List<ClimbData>();
         private string _currentLevelID = "";
 
-        public ClimbDataService(ManualLogSource logger)
+        public ClimbDataService(ModLogger logger)
         {
             _logger = logger;
         }
@@ -57,18 +56,18 @@ namespace FollowMePeak.Services
             string filePath = Path.Combine(Paths.PluginPath, "FollowMePeak_Data", $"{_currentLevelID}.json");
             if (!File.Exists(filePath))
             {
-                _logger.LogInfo($"No climb file found for '{_currentLevelID}'.");
+                _logger.Info($"No climb file found for '{_currentLevelID}'.");
                 return;
             }
             try
             {
                 string json = File.ReadAllText(filePath);
                 _allLoadedClimbs = JsonConvert.DeserializeObject<List<ClimbData>>(json, CommonJsonSettings.Default) ?? new List<ClimbData>();
-                _logger.LogInfo($"{_allLoadedClimbs.Count} climbs loaded for level '{_currentLevelID}'.");
+                _logger.Info($"{_allLoadedClimbs.Count} climbs loaded for level '{_currentLevelID}'.");
             }
             catch (Exception e)
             {
-                _logger.LogError($"Error loading climbs (possibly old format?): {e.Message}");
+                _logger.Error($"Error loading climbs (possibly old format?): {e.Message}");
             }
         }
 

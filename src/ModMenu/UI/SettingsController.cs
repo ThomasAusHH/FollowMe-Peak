@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using FollowMePeak.ModMenu.UI.Helpers;
-using System.Collections.Generic;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI
 {
@@ -17,6 +19,7 @@ namespace FollowMePeak.ModMenu.UI
         private Button _applyButton;
         private Button _resetButton;
         private Button _closeButton;
+        private Toggle _saveDeathClimbToggle;
         
         // State
         private bool _isRecording = false;
@@ -41,61 +44,61 @@ namespace FollowMePeak.ModMenu.UI
         {
             if (menuRoot == null)
             {
-                Debug.LogError("[SettingsController] menuRoot is null!");
+                ModLogger.Instance?.Error("[SettingsController] menuRoot is null!");
                 return;
             }
             
             var transform = menuRoot.transform;
-            Debug.Log("[SettingsController] Starting initialization...");
+            ModLogger.Instance?.Info("[SettingsController] Starting initialization...");
             
             // Find Settings Button with correct path
-            Debug.Log("[SettingsController] Searching for SettingsButton at path: MyModMenuPanel/SettingsButton");
+            ModLogger.Instance?.Info("[SettingsController] Searching for SettingsButton at path: MyModMenuPanel/SettingsButton");
             _settingsButton = UIElementFinder.FindGameObject(transform, "MyModMenuPanel/SettingsButton");
             
             // Fallback: Try recursive search if direct path fails
             if (_settingsButton == null)
             {
-                Debug.Log("[SettingsController] Direct path failed, trying recursive search for SettingsButton");
+                ModLogger.Instance?.Info("[SettingsController] Direct path failed, trying recursive search for SettingsButton");
                 var settingsButtonTransform = UIElementFinder.FindChildRecursive(transform, "SettingsButton");
                 _settingsButton = settingsButtonTransform?.gameObject;
             }
             if (_settingsButton != null)
             {
-                Debug.Log($"[SettingsController] Found SettingsButton at: {UIElementFinder.GetTransformPath(_settingsButton.transform)}");
+                ModLogger.Instance?.Info($"[SettingsController] Found SettingsButton at: {UIElementFinder.GetTransformPath(_settingsButton.transform)}");
                 var button = _settingsButton.GetComponent<Button>();
                 if (button != null)
                 {
                     button.onClick.RemoveAllListeners();
                     button.onClick.AddListener(OnSettingsButtonClick);
-                    Debug.Log("[SettingsController] Settings button listener added successfully");
+                    ModLogger.Instance?.Info("[SettingsController] Settings button listener added successfully");
                 }
             }
             else
             {
-                Debug.LogError("[SettingsController] SettingsButton not found!");
+                ModLogger.Instance?.Error("[SettingsController] SettingsButton not found!");
             }
             
             // Find Settings Panel with correct path
-            Debug.Log("[SettingsController] Searching for SettingsMenuPanel at path: MyModMenuPanel/SettingsMenuPanel");
+            ModLogger.Instance?.Info("[SettingsController] Searching for SettingsMenuPanel at path: MyModMenuPanel/SettingsMenuPanel");
             _settingsMenuPanel = UIElementFinder.FindGameObject(transform, "MyModMenuPanel/SettingsMenuPanel");
             
             if (_settingsMenuPanel == null)
             {
-                Debug.Log("[SettingsController] Direct path failed, trying recursive search for SettingsMenuPanel");
+                ModLogger.Instance?.Info("[SettingsController] Direct path failed, trying recursive search for SettingsMenuPanel");
                 var panelTransform = UIElementFinder.FindChildRecursive(transform, "SettingsMenuPanel");
                 _settingsMenuPanel = panelTransform?.gameObject;
             }
             
             if (_settingsMenuPanel != null)
             {
-                Debug.Log($"[SettingsController] Found SettingsMenuPanel at: {UIElementFinder.GetTransformPath(_settingsMenuPanel.transform)}");
+                ModLogger.Instance?.Info($"[SettingsController] Found SettingsMenuPanel at: {UIElementFinder.GetTransformPath(_settingsMenuPanel.transform)}");
                 // IMPORTANT: Hide panel initially
                 _settingsMenuPanel.SetActive(false);
-                Debug.Log("[SettingsController] Settings panel initially hidden");
+                ModLogger.Instance?.Info("[SettingsController] Settings panel initially hidden");
             }
             else
             {
-                Debug.LogError("[SettingsController] SettingsMenuPanel not found!");
+                ModLogger.Instance?.Error("[SettingsController] SettingsMenuPanel not found!");
             }
             
             // Find Actual Toggle Text with correct path
@@ -112,11 +115,11 @@ namespace FollowMePeak.ModMenu.UI
             
             if (_actualToggleText != null)
             {
-                Debug.Log("[SettingsController] Found SettingsMenuActualToggle text component");
+                ModLogger.Instance?.Info("[SettingsController] Found SettingsMenuActualToggle text component");
             }
             else
             {
-                Debug.LogWarning("[SettingsController] SettingsMenuActualToggle text not found");
+                ModLogger.Instance?.Warning("[SettingsController] SettingsMenuActualToggle text not found");
             }
             
             // Find Record Button with correct path
@@ -132,11 +135,11 @@ namespace FollowMePeak.ModMenu.UI
                 _recordToggleButton = recordButton;
                 _recordToggleButton.onClick.RemoveAllListeners();
                 _recordToggleButton.onClick.AddListener(StartKeyRecording);
-                Debug.Log("[SettingsController] Record button found and listener added");
+                ModLogger.Instance?.Info("[SettingsController] Record button found and listener added");
             }
             else
             {
-                Debug.LogError("[SettingsController] SettingsMenuRecordToggleButton not found!");
+                ModLogger.Instance?.Error("[SettingsController] SettingsMenuRecordToggleButton not found!");
             }
             
             // Find Press Any Key Text with correct path
@@ -151,11 +154,11 @@ namespace FollowMePeak.ModMenu.UI
             if (_pressAnyKeyText != null)
             {
                 _pressAnyKeyText.SetActive(false);
-                Debug.Log("[SettingsController] Press Any Key text found and hidden");
+                ModLogger.Instance?.Info("[SettingsController] Press Any Key text found and hidden");
             }
             else
             {
-                Debug.LogError("[SettingsController] SettingsMenuPressAnyKey not found!");
+                ModLogger.Instance?.Error("[SettingsController] SettingsMenuPressAnyKey not found!");
             }
             
             // Find Control Buttons with correct paths
@@ -173,11 +176,11 @@ namespace FollowMePeak.ModMenu.UI
             {
                 _applyButton.onClick.RemoveAllListeners();
                 _applyButton.onClick.AddListener(OnApplyClick);
-                Debug.Log("[SettingsController] Apply button found and listener added");
+                ModLogger.Instance?.Info("[SettingsController] Apply button found and listener added");
             }
             else
             {
-                Debug.LogWarning("[SettingsController] Apply button not found");
+                ModLogger.Instance?.Warning("[SettingsController] Apply button not found");
             }
             
             _resetButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuButtonArea/SettingsMenuResetButton");
@@ -194,11 +197,11 @@ namespace FollowMePeak.ModMenu.UI
             {
                 _resetButton.onClick.RemoveAllListeners();
                 _resetButton.onClick.AddListener(OnResetClick);
-                Debug.Log("[SettingsController] Reset button found and listener added");
+                ModLogger.Instance?.Info("[SettingsController] Reset button found and listener added");
             }
             else
             {
-                Debug.LogWarning("[SettingsController] Reset button not found");
+                ModLogger.Instance?.Warning("[SettingsController] Reset button not found");
             }
             
             _closeButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuButtonArea/SettingsMenuCloseButton");
@@ -215,11 +218,44 @@ namespace FollowMePeak.ModMenu.UI
             {
                 _closeButton.onClick.RemoveAllListeners();
                 _closeButton.onClick.AddListener(OnCloseClick);
-                Debug.Log("[SettingsController] Close button found and listener added");
+                ModLogger.Instance?.Info("[SettingsController] Close button found and listener added");
             }
             else
             {
-                Debug.LogWarning("[SettingsController] Close button not found");
+                ModLogger.Instance?.Warning("[SettingsController] Close button not found");
+            }
+            
+            // Find Save Death Climb Toggle - try both names (in case of typo)
+            _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuSaveDeathClimbToggle");
+            if (_saveDeathClimbToggle == null)
+            {
+                // Try alternative name in case of typo in UI
+                _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuDaveDeathClimbToggle");
+            }
+            if (_saveDeathClimbToggle == null && _settingsMenuPanel != null)
+            {
+                // Try relative to panel
+                var toggle = _settingsMenuPanel.transform.Find("SettingsMenuSaveDeathClimbToggle");
+                if (toggle == null)
+                {
+                    toggle = _settingsMenuPanel.transform.Find("SettingsMenuDaveDeathClimbToggle");
+                }
+                if (toggle != null)
+                {
+                    _saveDeathClimbToggle = toggle.GetComponent<Toggle>();
+                }
+            }
+            
+            if (_saveDeathClimbToggle != null)
+            {
+                _saveDeathClimbToggle.isOn = Plugin.SaveDeathClimbs.Value;
+                _saveDeathClimbToggle.onValueChanged.RemoveAllListeners();
+                _saveDeathClimbToggle.onValueChanged.AddListener(OnSaveDeathClimbsChanged);
+                ModLogger.Instance?.Info($"[SettingsController] Save Death Climb toggle found and initialized - Value: {Plugin.SaveDeathClimbs.Value}");
+            }
+            else
+            {
+                ModLogger.Instance?.Warning("[SettingsController] Save Death Climb toggle not found");
             }
             
             // Initialize current key display
@@ -227,12 +263,12 @@ namespace FollowMePeak.ModMenu.UI
             _pendingKey = _originalKey;
             UpdateKeyDisplay(_originalKey);
             
-            Debug.Log($"[SettingsController] Initialization complete - Current key: {_originalKey}, Elements found: Button={_settingsButton != null}, Panel={_settingsMenuPanel != null}, Record={_recordToggleButton != null}");
+            ModLogger.Instance?.Info($"[SettingsController] Initialization complete - Current key: {_originalKey}, Elements found: Button={_settingsButton != null}, Panel={_settingsMenuPanel != null}, Record={_recordToggleButton != null}");
         }
         
         private void OnSettingsButtonClick()
         {
-            Debug.Log("[SettingsController] Settings button clicked");
+            ModLogger.Instance?.Info("[SettingsController] Settings button clicked");
             if (_settingsMenuPanel != null)
             {
                 bool isActive = _settingsMenuPanel.activeSelf;
@@ -250,7 +286,7 @@ namespace FollowMePeak.ModMenu.UI
         
         private void StartKeyRecording()
         {
-            Debug.Log("[SettingsController] Starting key recording...");
+            ModLogger.Instance?.Info("[SettingsController] Starting key recording...");
             _isRecording = true;
             
             if (_pressAnyKeyText != null)
@@ -270,7 +306,7 @@ namespace FollowMePeak.ModMenu.UI
         
         private void StopKeyRecording(KeyCode? newKey = null)
         {
-            Debug.Log($"[SettingsController] Stopping key recording. New key: {newKey}");
+            ModLogger.Instance?.Info($"[SettingsController] Stopping key recording. New key: {newKey}");
             _isRecording = false;
             
             if (_pressAnyKeyText != null)
@@ -291,11 +327,11 @@ namespace FollowMePeak.ModMenu.UI
             {
                 _pendingKey = newKey.Value;
                 UpdateKeyDisplay(_pendingKey);
-                Debug.Log($"[SettingsController] Recorded new key: {_pendingKey}");
+                ModLogger.Instance?.Info($"[SettingsController] Recorded new key: {_pendingKey}");
             }
             else
             {
-                Debug.Log("[SettingsController] Key recording cancelled");
+                ModLogger.Instance?.Info("[SettingsController] Key recording cancelled");
             }
         }
         
@@ -329,7 +365,7 @@ namespace FollowMePeak.ModMenu.UI
         
         private void OnApplyClick()
         {
-            Debug.Log($"[SettingsController] Apply clicked. Pending: {_pendingKey}, Current: {Plugin.ModMenuToggleKey.Value}");
+            ModLogger.Instance?.Info($"[SettingsController] Apply clicked. Pending: {_pendingKey}, Current: {Plugin.ModMenuToggleKey.Value}");
             
             if (_pendingKey != Plugin.ModMenuToggleKey.Value)
             {
@@ -337,7 +373,7 @@ namespace FollowMePeak.ModMenu.UI
                 Plugin.Instance.Config.Save();
                 _originalKey = _pendingKey;
                 
-                Debug.Log($"[SettingsController] Applied new toggle key: {_pendingKey}");
+                ModLogger.Instance?.Info($"[SettingsController] Applied new toggle key: {_pendingKey}");
             }
             
             if (_settingsMenuPanel != null)
@@ -346,14 +382,14 @@ namespace FollowMePeak.ModMenu.UI
         
         private void OnResetClick()
         {
-            Debug.Log("[SettingsController] Reset clicked");
+            ModLogger.Instance?.Info("[SettingsController] Reset clicked");
             _pendingKey = KeyCode.F1;
             UpdateKeyDisplay(_pendingKey);
         }
         
         private void OnCloseClick()
         {
-            Debug.Log("[SettingsController] Close clicked");
+            ModLogger.Instance?.Info("[SettingsController] Close clicked");
             
             // Revert to original if not applied
             if (_pendingKey != _originalKey)
@@ -372,7 +408,7 @@ namespace FollowMePeak.ModMenu.UI
             {
                 string displayName = FormatKeyName(key);
                 _actualToggleText.text = displayName;
-                Debug.Log($"[SettingsController] Updated key display to: {displayName}");
+                ModLogger.Instance?.Info($"[SettingsController] Updated key display to: {displayName}");
             }
         }
         
@@ -423,6 +459,13 @@ namespace FollowMePeak.ModMenu.UI
                 return "Caps Lock";
             
             return name;
+        }
+        
+        private void OnSaveDeathClimbsChanged(bool value)
+        {
+            Plugin.SaveDeathClimbs.Value = value;
+            Plugin.Instance.Config.Save();
+            ModLogger.Instance?.Info($"[SettingsController] Save Death Climbs toggled: {value}");
         }
     }
 }

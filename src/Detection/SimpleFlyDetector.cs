@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using BepInEx.Logging;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Detection
 {
     public static class SimpleFlyDetector
     {
-        private static ManualLogSource _logger;
+        // Logger removed - using ModLogger.Instance instead
         private static float _detectionScore = 0f;
         private static string _lastReason = "No detection performed";
         private static List<string> _activeFlags = new List<string>();
@@ -26,10 +27,9 @@ namespace FollowMePeak.Detection
         private static Dictionary<string, int> _consecutiveSustainedVelocityFrames = new Dictionary<string, int>();
         private static int _consecutiveKinematicFrames = 0;
 
-        // Spawn protection
-        private static float _gameStartTime = -1f;
-        private static float _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
-        private static bool _isInGracePeriod = true;
+        // Run start tracking
+        private static float _runStartTime = -1f;
+        private static bool _detectionEnabled = false;
         private static string _lastSceneName = "";
         private static bool _isInValidLevel = false;
         
@@ -44,11 +44,30 @@ namespace FollowMePeak.Detection
         
         static SimpleFlyDetector()
         {
-            _logger = BepInEx.Logging.Logger.CreateLogSource("SimpleFlyDetector");
-            
             // Configuration is now loaded from FlyDetectionConfig constants
             _checkInterval = FlyDetectionConfig.DetectionCheckInterval;
-            _spawnGracePeriod = FlyDetectionConfig.SpawnGracePeriod;
+        }
+        
+        /// <summary>
+        /// Called when the run starts to enable detection
+        /// </summary>
+        public static void OnRunStarted()
+        {
+            if (!_isInValidLevel) 
+            {
+                ModLogger.Instance?.Warning("[FlyDetection] OnRunStarted called but not in valid level");
+                return;
+            }
+            
+            _runStartTime = Time.time;
+            _detectionEnabled = true;
+            ModLogger.Instance?.Info("[FlyDetection] Detection activated by RUN STARTED event");
+            
+            // Reset detection state
+            _detectionScore = 0f;
+            IsFlyDetected = false;
+            _activeFlags.Clear();
+            _lastReason = "Detection just started";
         }
         
         /// <summary>
@@ -57,24 +76,12 @@ namespace FollowMePeak.Detection
         public static void PerformDetection()
         {
             if (!_isInValidLevel) return;
-
-            // Grace period management
-            if (_gameStartTime < 0)
-            {
-                _gameStartTime = Time.time;
-                _isInGracePeriod = true;
-                _logger.LogInfo($"[FlyDetection] Grace period started ({_spawnGracePeriod} seconds)");
-            }
             
-            if (_isInGracePeriod)
+            // Check if detection is enabled
+            if (!_detectionEnabled)
             {
-                if (Time.time - _gameStartTime < _spawnGracePeriod)
-                {
-                    _lastReason = $"Grace period active ({_spawnGracePeriod - (Time.time - _gameStartTime):F1}s remaining)";
-                    return;
-                }
-                _isInGracePeriod = false;
-                _logger.LogInfo("[FlyDetection] Grace period ended - detection active");
+                _lastReason = "Waiting for RUN STARTED event";
+                return;
             }
             
             // Rate limit checks
@@ -97,6 +104,17 @@ namespace FollowMePeak.Detection
                     !go.name.Contains("Ragdoll") && !go.name.Contains("Corpse") && !go.name.Contains("Dead") &&
                     go.activeInHierarchy)
                 {
+                    // In multiplayer, only check local player to reduce spam
+                    if (Character.localCharacter != null)
+                    {
+                        // Try to check if this is the local player's GameObject
+                        var character = go.GetComponent<Character>();
+                        if (character != null && character != Character.localCharacter)
+                        {
+                            // Skip non-local characters in multiplayer
+                            continue;
+                        }
+                    }
                     Vector3 pos = go.transform.position;
                     if (pos == Vector3.zero || pos.y > 1000f || pos.y < -100f) continue;
 
@@ -127,14 +145,14 @@ namespace FollowMePeak.Detection
                     bool isCannonLaunch = gravityJustEnabledCount > 10; 
                     if (isCannonLaunch && doDetailedLog)
                     {
-                        _logger.LogInfo($"[FlyDetection] Cannon launch detected! Pausing velocity checks.");
+                        ModLogger.Instance?.Info($"[FlyDetection] Cannon launch detected! Pausing velocity checks.");
                     }
                     
                     // *** NEU: Aufruf der zentralen Ausnahme-Prüfung ***
                     bool isPlayerExempt = IsPlayerInExemptState(go);
                     if (isPlayerExempt && doDetailedLog)
                     {
-                        _logger.LogInfo($"[FlyDetection] Player is exempt (climbing/falling). Pausing velocity checks.");
+                        ModLogger.Instance?.Info($"[FlyDetection] Player is exempt (climbing/falling). Pausing velocity checks.");
                     }
 
                     // --- Detektionslogik ---
@@ -219,7 +237,7 @@ namespace FollowMePeak.Detection
 
                     if (doDetailedLog)
                     {
-                         _logger.LogInfo($"[Debug] {go.name} | Kinematic: {kinematicCount} | Score: {score:F0}");
+                         ModLogger.Instance?.Info($"[Debug] {go.name} | Kinematic: {kinematicCount} | Score: {score:F0}");
                     }
                 }
             }
@@ -308,7 +326,7 @@ namespace FollowMePeak.Detection
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[FlyDetection] Fehler beim Prüfen des Ausnahme-Status: {ex.Message}");
+                ModLogger.Instance?.Error($"[FlyDetection] Fehler beim Prüfen des Ausnahme-Status: {ex.Message}");
                 return false;
             }
         }
@@ -318,7 +336,7 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void OnSceneChanged(string sceneName)
         {
-            _logger.LogInfo($"[FlyDetection] Scene changed to {sceneName}, resetting state.");
+            ModLogger.Instance?.Info($"[FlyDetection] Scene changed to {sceneName}, resetting state.");
             
             _lastGravityStates.Clear();
             _consecutiveKinematicFrames = 0;
@@ -329,18 +347,20 @@ namespace FollowMePeak.Detection
             
             if (!_isInValidLevel)
             {
+                _detectionEnabled = false;
                 IsFlyDetected = false;
                 _detectionScore = 0;
                 _activeFlags.Clear();
-                _gameStartTime = -1f;
+                _runStartTime = -1f;
             }
             else if (sceneName != _lastSceneName)
             {
-                _gameStartTime = -1f; 
-                _isInGracePeriod = true;
+                _detectionEnabled = false;  // Wait for RUN STARTED
+                _runStartTime = -1f;
                 IsFlyDetected = false;
                 _detectionScore = 0;
                 _activeFlags.Clear();
+                ModLogger.Instance?.Info("[FlyDetection] New level loaded - waiting for RUN STARTED event");
             }
             _lastSceneName = sceneName;
         }
@@ -350,7 +370,7 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void ResetForNewRecording()
         {
-            _logger.LogInfo("[FlyDetection] Reset for new recording");
+            ModLogger.Instance?.Info("[FlyDetection] Reset for new recording");
             WasDetectedInCurrentRecording = false;
             MaxScoreInCurrentRecording = 0f;
             ReasonForCurrentRecording = "No detection in this recording";
@@ -359,10 +379,10 @@ namespace FollowMePeak.Detection
 
         private static void LogDetection()
         {
-            _logger.LogWarning("======================================");
-            _logger.LogWarning(">>> FLY MOD DETECTED <<<");
-            _logger.LogWarning($"Score: {_detectionScore}/100 | Reason: {_lastReason}");
-            _logger.LogWarning("======================================");
+            ModLogger.Instance?.Warning("======================================");
+            ModLogger.Instance?.Warning(">>> FLY MOD DETECTED <<<");
+            ModLogger.Instance?.Warning($"Score: {_detectionScore}/100 | Reason: {_lastReason}");
+            ModLogger.Instance?.Warning("======================================");
         }
     }
 }

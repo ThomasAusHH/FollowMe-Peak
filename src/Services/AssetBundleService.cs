@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection; // Hinzugefügt für das Laden aus der DLL
 using UnityEngine;
 using BepInEx.Logging;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Services
 {
@@ -23,7 +24,7 @@ namespace FollowMePeak.Services
             }
         }
 
-        private ManualLogSource _logger;
+        // Use ModLogger.Instance instead of own logger
         private AssetBundle _modUIBundle;
         private readonly Dictionary<string, UnityEngine.Object> _cachedAssets = new Dictionary<string, UnityEngine.Object>();
         private bool _isLoaded = false;
@@ -36,7 +37,7 @@ namespace FollowMePeak.Services
 
         private AssetBundleService()
         {
-            _logger = BepInEx.Logging.Logger.CreateLogSource("AssetBundleService");
+            // Logger is accessed via ModLogger.Instance
         }
 
         /// <summary>
@@ -46,14 +47,14 @@ namespace FollowMePeak.Services
         {
             if (_isLoaded)
             {
-                _logger.LogInfo("Mod UI bundle is already loaded.");
+                ModLogger.Instance?.Info("Mod UI bundle is already loaded.");
                 onComplete?.Invoke(true);
                 yield break;
             }
 
             if (_isLoading)
             {
-                _logger.LogWarning("Mod UI bundle is already being loaded.");
+                ModLogger.Instance?.Warning("Mod UI bundle is already being loaded.");
                 yield break; // Warten, bis der Ladevorgang abgeschlossen ist, anstatt einen Fehler auszulösen
             }
 
@@ -71,12 +72,12 @@ namespace FollowMePeak.Services
                 {
                     if (stream == null)
                     {
-                        _logger.LogError($"Embedded resource '{resourceName}' not found! Make sure the Build Action is set to 'Embedded Resource'.");
+                        ModLogger.Instance?.Error($"Embedded resource '{resourceName}' not found! Make sure the Build Action is set to 'Embedded Resource'.");
                         // Optional: Alle verfügbaren Ressourcen auflisten, um den richtigen Namen zu finden.
-                        _logger.LogInfo("Available embedded resources:");
+                        ModLogger.Instance?.Info("Available embedded resources:");
                         foreach (var name in assembly.GetManifestResourceNames())
                         {
-                            _logger.LogInfo($" -> {name}");
+                            ModLogger.Instance?.Info($" -> {name}");
                         }
                         
                         _isLoading = false;
@@ -94,7 +95,7 @@ namespace FollowMePeak.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"An error occurred while reading the embedded asset bundle: {ex}");
+                ModLogger.Instance?.Error($"An error occurred while reading the embedded asset bundle: {ex}");
                 _isLoading = false;
                 onComplete?.Invoke(false);
                 yield break;
@@ -107,21 +108,21 @@ namespace FollowMePeak.Services
             // 6. Das Ergebnis verarbeiten.
             if (bundleLoadRequest.assetBundle == null)
             {
-                _logger.LogError("Failed to load AssetBundle from memory. The bundle might be corrupt or incompatible.");
+                ModLogger.Instance?.Error("Failed to load AssetBundle from memory. The bundle might be corrupt or incompatible.");
                 _isLoading = false;
                 onComplete?.Invoke(false);
                 yield break;
             }
 
             _modUIBundle = bundleLoadRequest.assetBundle;
-            _logger.LogInfo($"Successfully loaded AssetBundle '{_modUIBundle.name}' from embedded resource.");
+            ModLogger.Instance?.Info($"Successfully loaded AssetBundle '{_modUIBundle.name}' from embedded resource.");
 
             // Liste alle Assets im Bundle für Debugging-Zwecke auf
             string[] assetNames = _modUIBundle.GetAllAssetNames();
-            _logger.LogInfo($"AssetBundle contains {assetNames.Length} assets:");
+            ModLogger.Instance?.Info($"AssetBundle contains {assetNames.Length} assets:");
             foreach (string assetName in assetNames)
             {
-                _logger.LogInfo($"  - {assetName}");
+                ModLogger.Instance?.Info($"  - {assetName}");
             }
 
             _isLoaded = true;
@@ -133,19 +134,19 @@ namespace FollowMePeak.Services
         {
             if (!_isLoaded || _modUIBundle == null)
             {
-                _logger.LogError("AssetBundle is not loaded. Call LoadModUIBundle first.");
+                ModLogger.Instance?.Error("AssetBundle is not loaded. Call LoadModUIBundle first.");
                 return null;
             }
 
             if (_cachedAssets.TryGetValue(prefabName, out var cachedAsset))
             {
-                _logger.LogInfo($"Returning cached prefab: {prefabName}");
+                ModLogger.Instance?.Info($"Returning cached prefab: {prefabName}");
                 return cachedAsset as GameObject;
             }
 
             try
             {
-                _logger.LogInfo($"Attempting to load prefab: {prefabName}");
+                ModLogger.Instance?.Info($"Attempting to load prefab: {prefabName}");
                 
                 // Versuche verschiedene Pfadvarianten
                 GameObject prefab = null;
@@ -157,25 +158,25 @@ namespace FollowMePeak.Services
                 if (prefab == null)
                 {
                     string lowerName = prefabName.ToLower();
-                    _logger.LogInfo($"Trying lowercase variant: {lowerName}");
+                    ModLogger.Instance?.Info($"Trying lowercase variant: {lowerName}");
                     prefab = _modUIBundle.LoadAsset<GameObject>(lowerName);
                 }
                 
                 // Wenn immer noch nicht gefunden, durchsuche alle Assets
                 if (prefab == null)
                 {
-                    _logger.LogInfo($"Searching through all assets for partial match...");
+                    ModLogger.Instance?.Info($"Searching through all assets for partial match...");
                     string[] allAssets = _modUIBundle.GetAllAssetNames();
                     foreach (string assetPath in allAssets)
                     {
                         if (assetPath.ToLower().Contains(prefabName.ToLower()))
                         {
-                            _logger.LogInfo($"Found potential match: {assetPath}");
+                            ModLogger.Instance?.Info($"Found potential match: {assetPath}");
                             var loadedAsset = _modUIBundle.LoadAsset(assetPath);
                             if (loadedAsset is GameObject)
                             {
                                 prefab = loadedAsset as GameObject;
-                                _logger.LogInfo($"Successfully loaded from path: {assetPath}");
+                                ModLogger.Instance?.Info($"Successfully loaded from path: {assetPath}");
                                 break;
                             }
                         }
@@ -185,25 +186,25 @@ namespace FollowMePeak.Services
                 if (prefab != null)
                 {
                     _cachedAssets[prefabName] = prefab;
-                    _logger.LogInfo($"Successfully loaded and cached prefab: {prefabName}");
+                    ModLogger.Instance?.Info($"Successfully loaded and cached prefab: {prefabName}");
                     
                     // Log prefab details
-                    _logger.LogInfo($"Prefab components:");
+                    ModLogger.Instance?.Info($"Prefab components:");
                     foreach (var component in prefab.GetComponents<Component>())
                     {
-                        _logger.LogInfo($"  - {component.GetType().Name}");
+                        ModLogger.Instance?.Info($"  - {component.GetType().Name}");
                     }
                 }
                 else
                 {
-                    _logger.LogWarning($"Prefab '{prefabName}' not found in the AssetBundle.");
-                    _logger.LogInfo("Available GameObjects in bundle:");
+                    ModLogger.Instance?.Warning($"Prefab '{prefabName}' not found in the AssetBundle.");
+                    ModLogger.Instance?.Info("Available GameObjects in bundle:");
                     foreach (var asset in _modUIBundle.GetAllAssetNames())
                     {
                         var obj = _modUIBundle.LoadAsset(asset);
                         if (obj is GameObject)
                         {
-                            _logger.LogInfo($"  - {asset} (GameObject)");
+                            ModLogger.Instance?.Info($"  - {asset} (GameObject)");
                         }
                     }
                 }
@@ -212,7 +213,7 @@ namespace FollowMePeak.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error loading prefab '{prefabName}': {ex.Message}");
+                ModLogger.Instance?.Error($"Error loading prefab '{prefabName}': {ex.Message}");
                 return null;
             }
         }
@@ -221,7 +222,7 @@ namespace FollowMePeak.Services
         {
             if (!_isLoaded || _modUIBundle == null)
             {
-                _logger.LogError("AssetBundle is not loaded. Call LoadModUIBundle first.");
+                ModLogger.Instance?.Error("AssetBundle is not loaded. Call LoadModUIBundle first.");
                 return null;
             }
 
@@ -237,18 +238,18 @@ namespace FollowMePeak.Services
                 if (asset != null)
                 {
                     _cachedAssets[assetName] = asset;
-                    // _logger.LogInfo($"Successfully loaded and cached asset: {assetName} of type {typeof(T).Name}");
+                    // ModLogger.Instance?.Info($"Successfully loaded and cached asset: {assetName} of type {typeof(T).Name}");
                 }
                 else
                 {
-                    _logger.LogWarning($"Asset '{assetName}' of type {typeof(T).Name} not found in AssetBundle");
+                    ModLogger.Instance?.Warning($"Asset '{assetName}' of type {typeof(T).Name} not found in AssetBundle");
                 }
 
                 return asset;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error loading asset '{assetName}': {ex.Message}");
+                ModLogger.Instance?.Error($"Error loading asset '{assetName}': {ex.Message}");
                 return null;
             }
         }
@@ -259,7 +260,7 @@ namespace FollowMePeak.Services
         {
             if (_modUIBundle != null)
             {
-                _logger.LogInfo("Unloading Mod UI AssetBundle");
+                ModLogger.Instance?.Info("Unloading Mod UI AssetBundle");
                 _modUIBundle.Unload(true); // true entlädt auch alle geladenen Assets
                 _modUIBundle = null;
             }

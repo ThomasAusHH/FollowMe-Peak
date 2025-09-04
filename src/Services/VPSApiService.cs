@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
-using BepInEx.Logging;
 using Newtonsoft.Json;
 using FollowMePeak.Models;
 using FollowMePeak.Utils;
@@ -14,11 +13,11 @@ namespace FollowMePeak.Services
 {
     public class VPSApiService
     {
-        private readonly ManualLogSource _logger;
+        private readonly ModLogger _logger;
         private readonly ServerConfig _config;
         private readonly MonoBehaviour _coroutineRunner;
 
-        public VPSApiService(ManualLogSource logger, ServerConfig config, MonoBehaviour coroutineRunner)
+        public VPSApiService(ModLogger logger, ServerConfig config, MonoBehaviour coroutineRunner)
         {
             _logger = logger;
             _config = config;
@@ -60,23 +59,23 @@ namespace FollowMePeak.Services
                         
                         if (IsServerReachable)
                         {
-                            _logger.LogInfo($"Server health check successful. {response.Stats.TotalClimbs} climbs in database.");
+                            _logger.Info($"Server health check successful. {response.Stats.TotalClimbs} climbs in database.");
                         }
                         else
                         {
-                            _logger.LogWarning($"Server unhealthy: {response.Status}");
+                            _logger.Warning($"Server unhealthy: {response.Status}");
                             IsServerReachable = false;
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"Failed to parse health response: {e.Message}");
+                        _logger.Error($"Failed to parse health response: {e.Message}");
                         IsServerReachable = false;
                     }
                 }
                 else
                 {
-                    _logger.LogError($"Health check failed: {request.error}");
+                    _logger.Error($"Health check failed: {request.error}");
                     IsServerReachable = false;
                 }
                 
@@ -92,7 +91,7 @@ namespace FollowMePeak.Services
             {
                 if (_cachedUpdateMessage != null && _cachedUpdateMessage.IsCacheValid())
                 {
-                    _logger.LogInfo("[UpdateMessage] Using cached message");
+                    _logger.Info("[UpdateMessage] Using cached message");
                     callback?.Invoke(_cachedUpdateMessage);
                     return;
                 }
@@ -139,18 +138,18 @@ namespace FollowMePeak.Services
                             _cachedUpdateMessage = updateMessage;
                         }
                         
-                        _logger.LogInfo($"[UpdateMessage] Check complete - HasUpdate: {updateMessage.HasUpdate}");
+                        _logger.Info($"[UpdateMessage] Check complete - HasUpdate: {updateMessage.HasUpdate}");
                         callback?.Invoke(updateMessage);
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"[UpdateMessage] Failed to parse response: {e.Message}");
+                        _logger.Error($"[UpdateMessage] Failed to parse response: {e.Message}");
                         callback?.Invoke(new UpdateMessage { HasUpdate = false });
                     }
                 }
                 else
                 {
-                    _logger.LogWarning($"[UpdateMessage] Check failed: {request.error}");
+                    _logger.Warning($"[UpdateMessage] Check failed: {request.error}");
                     callback?.Invoke(new UpdateMessage { HasUpdate = false });
                 }
             }
@@ -213,7 +212,7 @@ namespace FollowMePeak.Services
             string url = $"{_config.BaseUrl}/api/climbs";
             
             int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
-            _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
+            _logger.Info($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
             
             // Always use compressed format
             var compressedData = new System.IO.MemoryStream();
@@ -234,7 +233,7 @@ namespace FollowMePeak.Services
             };
             
             string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
-            _logger.LogInfo($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
+            _logger.Info($"Using compressed upload format. Original points: {climbData.Points.Count}, Compressed size: {compressedBytes.Length} bytes");
             
             // Find ascentLevel in JSON for debugging
             int ascentIndex = json.IndexOf("\"ascentLevel\":");
@@ -242,20 +241,20 @@ namespace FollowMePeak.Services
             {
                 int endIndex = Math.Min(ascentIndex + 50, json.Length);
                 string ascentPart = json.Substring(ascentIndex, endIndex - ascentIndex);
-                _logger.LogInfo($"Upload JSON contains ascentLevel: {ascentPart}");
+                _logger.Info($"Upload JSON contains ascentLevel: {ascentPart}");
             }
             else
             {
-                _logger.LogError("Upload JSON does NOT contain ascentLevel field!");
+                _logger.Error("Upload JSON does NOT contain ascentLevel field!");
             }
             
-            _logger.LogInfo($"Upload JSON payload (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}...");
+            _logger.Info($"Upload JSON payload (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}...");
             
             // Check payload size before upload
             if (json.Length > GetMaxPayloadSize())
             {
                 string error = $"Payload too large ({json.Length} bytes). Consider reducing climb complexity.";
-                _logger.LogError(error);
+                _logger.Error(error);
                 callback?.Invoke(false, error);
                 yield break;
             }
@@ -281,25 +280,25 @@ namespace FollowMePeak.Services
                         if (response.Success)
                         {
                             _config.IncrementUploadCount();
-                            _logger.LogInfo($"Climb uploaded successfully: {response.Data.ClimbId}");
+                            _logger.Info($"Climb uploaded successfully: {response.Data.ClimbId}");
                             callback?.Invoke(true, response.Data.ClimbId);
                         }
                         else
                         {
-                            _logger.LogError($"Upload failed: {response.Error}");
+                            _logger.Error($"Upload failed: {response.Error}");
                             callback?.Invoke(false, response.Error);
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"Failed to parse upload response: {e.Message}");
+                        _logger.Error($"Failed to parse upload response: {e.Message}");
                         callback?.Invoke(false, "Parse error");
                     }
                 }
                 else
                 {
                     string error = $"Upload request failed: {request.error} (HTTP {request.responseCode})";
-                    _logger.LogError(error);
+                    _logger.Error(error);
                     callback?.Invoke(false, error);
                 }
             }
@@ -325,7 +324,7 @@ namespace FollowMePeak.Services
             string url = $"{_config.BaseUrl}/api/climbs";
             
             int clampedAscentLevel = InputValidator.ClampAscentLevel(climbData.AscentLevel);
-            _logger.LogInfo($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
+            _logger.Info($"Upload data: AscentLevel from ClimbData: {climbData.AscentLevel}, Clamped: {clampedAscentLevel}");
             
             // Always use compressed format
             var compressedData = new System.IO.MemoryStream();
@@ -351,13 +350,13 @@ namespace FollowMePeak.Services
             };
             
             string json = JsonConvert.SerializeObject(uploadData, CommonJsonSettings.Compact);
-            _logger.LogInfo($"Using compressed upload format with detection data. Version: {Plugin.MOD_VERSION}, Flagged: {isFlagged}");
+            _logger.Info($"Using compressed upload format with detection data. Version: {Plugin.MOD_VERSION}, Flagged: {isFlagged}");
             
             // Check payload size before upload
             if (json.Length > GetMaxPayloadSize())
             {
                 string error = $"Payload too large ({json.Length} bytes). Consider reducing climb complexity.";
-                _logger.LogError(error);
+                _logger.Error(error);
                 callback?.Invoke(false, error);
                 yield break;
             }
@@ -383,25 +382,25 @@ namespace FollowMePeak.Services
                         if (response.Success)
                         {
                             _config.IncrementUploadCount();
-                            _logger.LogInfo($"Climb uploaded successfully: {response.Data.ClimbId}");
+                            _logger.Info($"Climb uploaded successfully: {response.Data.ClimbId}");
                             callback?.Invoke(true, response.Data.ClimbId);
                         }
                         else
                         {
-                            _logger.LogError($"Upload failed: {response.Error}");
+                            _logger.Error($"Upload failed: {response.Error}");
                             callback?.Invoke(false, response.Error);
                         }
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"Failed to parse upload response: {e.Message}");
+                        _logger.Error($"Failed to parse upload response: {e.Message}");
                         callback?.Invoke(false, "Parse error");
                     }
                 }
                 else
                 {
                     string error = $"Upload request failed: {request.error} (HTTP {request.responseCode})";
-                    _logger.LogError(error);
+                    _logger.Error(error);
                     callback?.Invoke(false, error);
                 }
             }
@@ -475,33 +474,33 @@ namespace FollowMePeak.Services
                                 // Debug logging for compressed format
                                 if (!string.IsNullOrEmpty(serverClimb.PointData))
                                 {
-                                    _logger.LogInfo($"Processing compressed climb {serverClimb.Id}: PointData length={serverClimb.PointData.Length}, Points count={climbData.Points?.Count ?? 0}");
+                                    _logger.Info($"Processing compressed climb {serverClimb.Id}: PointData length={serverClimb.PointData.Length}, Points count={climbData.Points?.Count ?? 0}");
                                 }
                                 
                                 climbs.Add(climbData);
                             }
                         }
                         
-                        _logger.LogInfo($"Downloaded {climbs.Count} climbs for level {levelId}");
+                        _logger.Info($"Downloaded {climbs.Count} climbs for level {levelId}");
                         callback?.Invoke(climbs, null, response.Meta);
                     }
                     catch (Exception e)
                     {
                         string error = $"Failed to parse download response: {e.Message}";
-                        _logger.LogError(error);
+                        _logger.Error(error);
                         callback?.Invoke(new List<ClimbData>(), error, null);
                     }
                 }
                 else if (request.responseCode == 404)
                 {
                     // No climbs found for this level
-                    _logger.LogInfo($"No climbs found for level {levelId}");
+                    _logger.Info($"No climbs found for level {levelId}");
                     callback?.Invoke(new List<ClimbData>(), null, null);
                 }
                 else
                 {
                     string error = $"Download request failed: {request.error} (HTTP {request.responseCode})";
-                    _logger.LogError(error);
+                    _logger.Error(error);
                     callback?.Invoke(new List<ClimbData>(), error, null);
                 }
             }
@@ -548,31 +547,31 @@ namespace FollowMePeak.Services
                         if (response.Success && response.Data != null)
                         {
                             var climbData = response.Data.ToClimbData();
-                            _logger.LogInfo($"Found climb with peak code {peakCode}: {climbData.GetDisplayName()}");
+                            _logger.Info($"Found climb with peak code {peakCode}: {climbData.GetDisplayName()}");
                             callback?.Invoke(climbData, null);
                         }
                         else
                         {
-                            _logger.LogInfo($"No climb found with peak code {peakCode}");
+                            _logger.Info($"No climb found with peak code {peakCode}");
                             callback?.Invoke(null, "Climb not found");
                         }
                     }
                     catch (Exception e)
                     {
                         string error = $"Failed to parse search response: {e.Message}";
-                        _logger.LogError(error);
+                        _logger.Error(error);
                         callback?.Invoke(null, error);
                     }
                 }
                 else if (request.responseCode == 404)
                 {
-                    _logger.LogInfo($"No climb found with peak code {peakCode}");
+                    _logger.Info($"No climb found with peak code {peakCode}");
                     callback?.Invoke(null, "Climb not found");
                 }
                 else
                 {
                     string error = $"Search request failed: {request.error} (HTTP {request.responseCode})";
-                    _logger.LogError(error);
+                    _logger.Error(error);
                     callback?.Invoke(null, error);
                 }
             }
@@ -602,7 +601,7 @@ namespace FollowMePeak.Services
                 else
                 {
                     string error = $"Stats request failed: {request.error}";
-                    _logger.LogError(error);
+                    _logger.Error(error);
                     callback?.Invoke(null, error);
                 }
             }
