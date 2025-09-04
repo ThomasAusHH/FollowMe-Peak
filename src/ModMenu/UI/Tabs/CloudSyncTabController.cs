@@ -1,8 +1,12 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using FollowMePeak.Services;
 using FollowMePeak.ModMenu.UI.Helpers;
+using FollowMePeak.Services;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI.Tabs
 {
@@ -47,7 +51,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void FindUIElements(GameObject root)
         {
-            Debug.Log("[CloudSyncTab] Finding UI elements");
+            ModLogger.Instance?.Info("[CloudSyncTab] Finding UI elements");
             
             // Find Cloud Sync Page
             Transform pages = root.transform.Find("MyModMenuPanel/Pages");
@@ -119,22 +123,22 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 // If test button not found in active area, search entire CloudSyncActive
                 if (_cloudSyncTestButton == null && _cloudSyncActive != null)
                 {
-                    Debug.Log("[CloudSyncTab] Searching for CloudSyncTestButton in entire CloudSyncActive...");
+                    ModLogger.Instance?.Info("[CloudSyncTab] Searching for CloudSyncTestButton in entire CloudSyncActive...");
                     _cloudSyncTestButton = UIElementFinder.FindComponent<Button>(_cloudSyncActive.transform, "CloudSyncTestButton");
-                    Debug.Log($"[CloudSyncTab] CloudSyncTestButton found in CloudSyncActive: {_cloudSyncTestButton != null}");
+                    ModLogger.Instance?.Info($"[CloudSyncTab] CloudSyncTestButton found in CloudSyncActive: {_cloudSyncTestButton != null}");
                 }
                 
                 // If still not found, search in CloudSyncPage
                 if (_cloudSyncTestButton == null && _cloudSyncPage != null)
                 {
-                    Debug.Log("[CloudSyncTab] Searching for CloudSyncTestButton in entire CloudSyncPage...");
+                    ModLogger.Instance?.Info("[CloudSyncTab] Searching for CloudSyncTestButton in entire CloudSyncPage...");
                     Button[] allButtons = _cloudSyncPage.GetComponentsInChildren<Button>();
                     foreach (var button in allButtons)
                     {
                         if (button.name.Contains("Test") || button.name.Contains("CloudSyncTest"))
                         {
                             _cloudSyncTestButton = button;
-                            Debug.Log($"[CloudSyncTab] Found test button: {button.name} at {GetGameObjectPath(button.gameObject)}");
+                            ModLogger.Instance?.Info($"[CloudSyncTab] Found test button: {button.name} at {GetGameObjectPath(button.gameObject)}");
                             break;
                         }
                     }
@@ -143,14 +147,14 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 // Search for status toggle if not found
                 if (_cloudSyncStatus == null && _cloudSyncActive != null)
                 {
-                    Debug.Log("[CloudSyncTab] Searching for CloudSyncStatus toggle in entire CloudSyncActive...");
+                    ModLogger.Instance?.Info("[CloudSyncTab] Searching for CloudSyncStatus toggle in entire CloudSyncActive...");
                     Toggle[] statusToggles = _cloudSyncActive.GetComponentsInChildren<Toggle>();
                     foreach (var toggle in statusToggles)
                     {
                         if (toggle.name.Contains("Status"))
                         {
                             _cloudSyncStatus = toggle;
-                            Debug.Log($"[CloudSyncTab] Found status toggle: {toggle.name}");
+                            ModLogger.Instance?.Info($"[CloudSyncTab] Found status toggle: {toggle.name}");
                             break;
                         }
                     }
@@ -164,38 +168,38 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 
                 // Find CloudSyncNameArea
                 Transform nameArea = _cloudSyncActive.transform.Find("CloudSyncNameArea");
-                Debug.Log($"[CloudSyncTab] CloudSyncNameArea found: {nameArea != null}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] CloudSyncNameArea found: {nameArea != null}");
                 if (nameArea != null)
                 {
                     _cloudSyncActualName = UIElementFinder.FindComponent<TextMeshProUGUI>(nameArea, "CloudSyncName/CloudSyncActualName");
                     _cloudSyncNameInput = UIElementFinder.FindComponent<TMP_InputField>(nameArea, "CloudSyncName/CloudSyncNameEnter");
                     _cloudSyncNameSaveButton = UIElementFinder.FindComponent<Button>(nameArea, "CloudSyncNameSaveButton");
                     
-                    Debug.Log($"[CloudSyncTab] CloudSyncNameSaveButton found in nameArea: {_cloudSyncNameSaveButton != null}");
+                    ModLogger.Instance?.Info($"[CloudSyncTab] CloudSyncNameSaveButton found in nameArea: {_cloudSyncNameSaveButton != null}");
                 }
                 
                 // If save button not found, search in entire CloudSyncActive
                 if (_cloudSyncNameSaveButton == null)
                 {
-                    Debug.Log("[CloudSyncTab] Searching for CloudSyncNameSaveButton in entire CloudSyncActive...");
+                    ModLogger.Instance?.Info("[CloudSyncTab] Searching for CloudSyncNameSaveButton in entire CloudSyncActive...");
                     _cloudSyncNameSaveButton = UIElementFinder.FindComponent<Button>(_cloudSyncActive.transform, "CloudSyncNameSaveButton");
-                    Debug.Log($"[CloudSyncTab] CloudSyncNameSaveButton found in CloudSyncActive: {_cloudSyncNameSaveButton != null}");
+                    ModLogger.Instance?.Info($"[CloudSyncTab] CloudSyncNameSaveButton found in CloudSyncActive: {_cloudSyncNameSaveButton != null}");
                 }
             }
             
             // If save button still not found, search entire page
             if (_cloudSyncNameSaveButton == null && _cloudSyncPage != null)
             {
-                Debug.Log("[CloudSyncTab] Searching for CloudSyncNameSaveButton in entire CloudSyncPage...");
+                ModLogger.Instance?.Info("[CloudSyncTab] Searching for CloudSyncNameSaveButton in entire CloudSyncPage...");
                 Button[] allButtons = _cloudSyncPage.GetComponentsInChildren<Button>();
-                Debug.Log($"[CloudSyncTab] Found {allButtons.Length} buttons in CloudSyncPage:");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Found {allButtons.Length} buttons in CloudSyncPage:");
                 foreach (var button in allButtons)
                 {
-                    Debug.Log($"[CloudSyncTab]   - Button: {button.name} (path: {GetGameObjectPath(button.gameObject)})");
+                    ModLogger.Instance?.Info($"[CloudSyncTab]   - Button: {button.name} (path: {GetGameObjectPath(button.gameObject)})");
                     if (button.name.Contains("CloudSyncNameSaveButton") || button.name.Contains("Save"))
                     {
                         _cloudSyncNameSaveButton = button;
-                        Debug.Log($"[CloudSyncTab] Found save button: {button.name}");
+                        ModLogger.Instance?.Info($"[CloudSyncTab] Found save button: {button.name}");
                         break;
                     }
                 }
@@ -218,13 +222,13 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             
             if (_cloudSyncToggle == null)
             {
-                Debug.LogError("[CloudSyncTab] CRITICAL: No CloudSync activation toggle found anywhere!");
+                ModLogger.Instance?.Error("[CloudSyncTab] CRITICAL: No CloudSync activation toggle found anywhere!");
             }
         }
         
         private void SetupToggles()
         {
-            Debug.Log("[CloudSyncTab] Setting up toggles");
+            ModLogger.Instance?.Info("[CloudSyncTab] Setting up toggles");
             
             if (_cloudSyncToggle != null)
             {
@@ -233,53 +237,53 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
             else
             {
-                Debug.LogError("[CloudSyncTab] Cannot setup toggle - _cloudSyncToggle is null!");
+                ModLogger.Instance?.Error("[CloudSyncTab] Cannot setup toggle - _cloudSyncToggle is null!");
             }
             
             // Make status toggle non-interactive (read-only visual indicator)
             if (_cloudSyncStatus != null)
             {
                 _cloudSyncStatus.interactable = false;
-                Debug.Log($"[CloudSyncTab] Status toggle set to non-interactive (read-only)");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Status toggle set to non-interactive (read-only)");
             }
             else
             {
-                Debug.LogWarning("[CloudSyncTab] CloudSyncStatus toggle not found - cannot set to non-interactive");
+                ModLogger.Instance?.Warning("[CloudSyncTab] CloudSyncStatus toggle not found - cannot set to non-interactive");
             }
         }
         
         private void SetupButtons()
         {
-            Debug.Log("[CloudSyncTab] Setting up buttons");
+            ModLogger.Instance?.Info("[CloudSyncTab] Setting up buttons");
             
             if (_cloudSyncNameSaveButton != null)
             {
-                Debug.Log($"[CloudSyncTab] Attaching listener to CloudSyncNameSaveButton: {_cloudSyncNameSaveButton.name}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Attaching listener to CloudSyncNameSaveButton: {_cloudSyncNameSaveButton.name}");
                 _cloudSyncNameSaveButton.onClick.RemoveAllListeners();
                 _cloudSyncNameSaveButton.onClick.AddListener(SaveCloudSyncName);
-                Debug.Log("[CloudSyncTab] SaveCloudSyncName listener attached successfully");
+                ModLogger.Instance?.Info("[CloudSyncTab] SaveCloudSyncName listener attached successfully");
             }
             else
             {
-                Debug.LogError("[CloudSyncTab] CloudSyncNameSaveButton is null - cannot attach listener!");
+                ModLogger.Instance?.Error("[CloudSyncTab] CloudSyncNameSaveButton is null - cannot attach listener!");
             }
             
             if (_cloudSyncTestButton != null)
             {
-                Debug.Log($"[CloudSyncTab] Attaching listener to CloudSyncTestButton: {_cloudSyncTestButton.name}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Attaching listener to CloudSyncTestButton: {_cloudSyncTestButton.name}");
                 _cloudSyncTestButton.onClick.RemoveAllListeners();
                 _cloudSyncTestButton.onClick.AddListener(TestConnection);
-                Debug.Log("[CloudSyncTab] TestConnection listener attached successfully");
+                ModLogger.Instance?.Info("[CloudSyncTab] TestConnection listener attached successfully");
             }
             else
             {
-                Debug.LogError("[CloudSyncTab] CloudSyncTestButton is null - cannot attach listener!");
+                ModLogger.Instance?.Error("[CloudSyncTab] CloudSyncTestButton is null - cannot attach listener!");
             }
         }
         
         private void OnCloudSyncToggled(bool value)
         {
-            Debug.Log($"[CloudSyncTab] Cloud Sync toggled: {value}");
+            ModLogger.Instance?.Info($"[CloudSyncTab] Cloud Sync toggled: {value}");
             
             if (_serverConfig != null)
             {
@@ -302,11 +306,11 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_cloudSyncNameInput == null || _serverConfig == null) return;
             
             string newName = _cloudSyncNameInput.text;
-            Debug.Log($"[CloudSyncTab] SaveCloudSyncName called with: '{newName}'");
+            ModLogger.Instance?.Info($"[CloudSyncTab] SaveCloudSyncName called with: '{newName}'");
             
             if (!string.IsNullOrEmpty(newName))
             {
-                Debug.Log($"[CloudSyncTab] Saving player name: {newName}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Saving player name: {newName}");
                 // Use the service method which properly handles setting player name
                 _serverConfig.SetPlayerName(newName);
                 
@@ -323,13 +327,13 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
             else
             {
-                Debug.LogWarning("[CloudSyncTab] Cannot save empty player name");
+                ModLogger.Instance?.Warning("[CloudSyncTab] Cannot save empty player name");
             }
         }
         
         public void LoadSettings()
         {
-            Debug.Log("[CloudSyncTab] Loading settings");
+            ModLogger.Instance?.Info("[CloudSyncTab] Loading settings");
             
             if (_serverConfig != null && _serverConfig.Config != null)
             {
@@ -351,7 +355,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 if (_cloudSyncNameInput != null)
                 {
                     _cloudSyncNameInput.text = _serverConfig.Config.PlayerName ?? "";
-                    Debug.Log($"[CloudSyncTab] Initialized name input with: '{_cloudSyncNameInput.text}'");
+                    ModLogger.Instance?.Info($"[CloudSyncTab] Initialized name input with: '{_cloudSyncNameInput.text}'");
                 }
                 
                 // Update connection status
@@ -369,7 +373,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_cloudSyncInactive != null)
                 _cloudSyncInactive.SetActive(!isEnabled);
             
-            Debug.Log($"[CloudSyncTab] Updated visibility - Active: {isEnabled}, Inactive: {!isEnabled}");
+            ModLogger.Instance?.Info($"[CloudSyncTab] Updated visibility - Active: {isEnabled}, Inactive: {!isEnabled}");
         }
         
         private void UpdateConnectionStatus()
@@ -377,7 +381,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_cloudSyncStatus != null && _apiService != null)
             {
                 _cloudSyncStatus.isOn = _apiService.IsServerReachable;
-                Debug.Log($"[CloudSyncTab] Connection status: {_apiService.IsServerReachable}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Connection status: {_apiService.IsServerReachable}");
             }
         }
         
@@ -385,7 +389,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         {
             if (_apiService == null) return;
             
-            Debug.Log("[CloudSyncTab] Testing connection...");
+            ModLogger.Instance?.Info("[CloudSyncTab] Testing connection...");
             
             // Update button text to show testing
             if (_cloudSyncTestLabel != null)
@@ -405,7 +409,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     _cloudSyncTestLabel.text = "Test";
                 }
                 
-                Debug.Log($"[CloudSyncTab] Health check complete. Server reachable: {isReachable}");
+                ModLogger.Instance?.Info($"[CloudSyncTab] Health check complete. Server reachable: {isReachable}");
             });
         }
         
@@ -434,7 +438,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         public void Cleanup()
         {
-            Debug.Log("[CloudSyncTab] Cleaning up");
+            ModLogger.Instance?.Info("[CloudSyncTab] Cleaning up");
             
             if (_cloudSyncNameSaveButton != null)
                 _cloudSyncNameSaveButton.onClick.RemoveAllListeners();

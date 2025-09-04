@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System.Collections.Generic;
-using System;
 using FollowMePeak.Models;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI.Tabs.Components
 {
@@ -153,7 +155,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     copyButton.onClick.RemoveAllListeners();
                     copyButton.onClick.AddListener(() => {
                         GUIUtility.systemCopyBuffer = climb.ShareCode;
-                        Debug.Log($"[ClimbListItem] Copied share code: {climb.ShareCode}");
+                        ModLogger.Instance?.Info($"[ClimbListItem] Copied share code: {climb.ShareCode}");
                     });
                     copyButton.gameObject.SetActive(true);
                 }

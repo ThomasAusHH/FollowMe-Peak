@@ -1,8 +1,9 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System.Collections.Generic;
 using FollowMePeak.ModMenu.UI.Helpers;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI
 {
@@ -30,7 +31,7 @@ namespace FollowMePeak.ModMenu.UI
         
         public void Initialize(GameObject root)
         {
-            Debug.Log("[TabManager] Initializing");
+            ModLogger.Instance?.Info("[TabManager] Initializing");
             FindTabElements(root);
         }
         
@@ -67,7 +68,7 @@ namespace FollowMePeak.ModMenu.UI
                     button.onClick.RemoveAllListeners();
                     button.onClick.AddListener(() => SwitchToTab(tabId));
                     
-                    Debug.Log($"[TabManager] Registered tab button: {tabId}");
+                    ModLogger.Instance?.Info($"[TabManager] Registered tab button: {tabId}");
                 }
             }
         }
@@ -78,7 +79,7 @@ namespace FollowMePeak.ModMenu.UI
             if (pageTransform != null)
             {
                 _tabPages[tabId] = pageTransform.gameObject;
-                Debug.Log($"[TabManager] Registered tab page: {tabId}");
+                ModLogger.Instance?.Info($"[TabManager] Registered tab page: {tabId}");
             }
         }
         
@@ -96,16 +97,16 @@ namespace FollowMePeak.ModMenu.UI
                 _tabPages[tabId] = page;
             }
             
-            Debug.Log($"[TabManager] Manually registered tab: {tabId}");
+            ModLogger.Instance?.Info($"[TabManager] Manually registered tab: {tabId}");
         }
         
         public void SwitchToTab(string tabId)
         {
-            Debug.Log($"[TabManager] Switching to tab: {tabId}");
+            ModLogger.Instance?.Info($"[TabManager] Switching to tab: {tabId}");
             
             if (!_tabButtons.ContainsKey(tabId) || !_tabPages.ContainsKey(tabId))
             {
-                Debug.LogError($"[TabManager] Tab '{tabId}' not found");
+                ModLogger.Instance?.Error($"[TabManager] Tab '{tabId}' not found");
                 return;
             }
             
@@ -162,7 +163,7 @@ namespace FollowMePeak.ModMenu.UI
         
         public void Cleanup()
         {
-            Debug.Log("[TabManager] Cleaning up");
+            ModLogger.Instance?.Info("[TabManager] Cleaning up");
             
             // Remove all button listeners
             foreach (var button in _tabButtons.Values)

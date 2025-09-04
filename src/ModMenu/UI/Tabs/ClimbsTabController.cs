@@ -8,6 +8,7 @@ using FollowMePeak.Models;
 using FollowMePeak.Managers;
 using FollowMePeak.ModMenu.UI.Helpers;
 using FollowMePeak.ModMenu.UI.Tabs.Components;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI.Tabs
 {
@@ -89,7 +90,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void FindUIElements(GameObject root)
         {
-            Debug.Log("[ClimbsTab] Finding UI elements");
+            ModLogger.Instance?.Info("[ClimbsTab] Finding UI elements");
             
             // Find Climbs Page
             Transform pages = root.transform.Find("MyModMenuPanel/Pages");
@@ -161,22 +162,22 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     // Initially hidden
                     _updateMessageBox.SetActive(false);
                     
-                    Debug.Log($"[ClimbsTab] UpdateMessageBox found at ClimbsScrollView - Message: {_updateMessageText != null}, Close: {_updateMessageCloseButton != null}, Background: {_updateMessageBackground != null}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] UpdateMessageBox found at ClimbsScrollView - Message: {_updateMessageText != null}, Close: {_updateMessageCloseButton != null}, Background: {_updateMessageBackground != null}");
                 }
                 else
                 {
-                    Debug.LogWarning("[ClimbsTab] UpdateMessageBox not found under ClimbsScrollView");
+                    ModLogger.Instance?.Warning("[ClimbsTab] UpdateMessageBox not found under ClimbsScrollView");
                 }
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] ClimbsScrollView not found - cannot search for UpdateMessageBox");
+                ModLogger.Instance?.Warning("[ClimbsTab] ClimbsScrollView not found - cannot search for UpdateMessageBox");
             }
         }
         
         private void FindNotificationElements()
         {
-            Debug.Log("[ClimbsTab] Searching for notification elements");
+            ModLogger.Instance?.Info("[ClimbsTab] Searching for notification elements");
             
             // Find all GameObjects in the entire page
             Transform[] allTransforms = _climbsPage.GetComponentsInChildren<Transform>(true);
@@ -186,27 +187,27 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 if (t.gameObject.name == "NotOnIslandNotification")
                 {
                     _notOnIslandNotification = t.gameObject;
-                    Debug.Log($"[ClimbsTab] Found NotOnIslandNotification at: {GetPath(t)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Found NotOnIslandNotification at: {GetPath(t)}");
                 }
                 else if (t.gameObject.name == "NoClimbAvailableNotification")
                 {
                     _noClimbAvailableNotification = t.gameObject;
-                    Debug.Log($"[ClimbsTab] Found NoClimbAvailableNotification at: {GetPath(t)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Found NoClimbAvailableNotification at: {GetPath(t)}");
                 }
                 else if (t.gameObject.name == "NotOnIslandNotificationBackgroundImage")
                 {
                     _notOnIslandNotificationBackgroundImage = t.gameObject;
-                    Debug.Log($"[ClimbsTab] Found NotOnIslandNotificationBackgroundImage at: {GetPath(t)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Found NotOnIslandNotificationBackgroundImage at: {GetPath(t)}");
                 }
                 else if (t.gameObject.name == "NoClimbAvailableNotificationBackgroundImage")
                 {
                     _noClimbAvailableNotificationBackgroundImage = t.gameObject;
-                    Debug.Log($"[ClimbsTab] Found NoClimbAvailableNotificationBackgroundImage at: {GetPath(t)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Found NoClimbAvailableNotificationBackgroundImage at: {GetPath(t)}");
                 }
                 else if (t.gameObject.name == "InfoBox")
                 {
                     _infoBox = t.gameObject;
-                    Debug.Log($"[ClimbsTab] Found InfoBox at: {GetPath(t)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Found InfoBox at: {GetPath(t)}");
                 }
             }
             
@@ -219,11 +220,11 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 if (parent1 == parent2 && parent1 != null)
                 {
                     _infoBox = parent1.gameObject;
-                    Debug.Log($"[ClimbsTab] InfoBox (common parent) found at: {GetPath(parent1)}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] InfoBox (common parent) found at: {GetPath(parent1)}");
                 }
             }
             
-            Debug.Log($"[ClimbsTab] Notification search complete - NotOnIsland: {_notOnIslandNotification != null}, NoClimbs: {_noClimbAvailableNotification != null}, NotOnIslandBG: {_notOnIslandNotificationBackgroundImage != null}, NoClimbsBG: {_noClimbAvailableNotificationBackgroundImage != null}, InfoBox: {_infoBox != null}");
+            ModLogger.Instance?.Info($"[ClimbsTab] Notification search complete - NotOnIsland: {_notOnIslandNotification != null}, NoClimbs: {_noClimbAvailableNotification != null}, NotOnIslandBG: {_notOnIslandNotificationBackgroundImage != null}, NoClimbsBG: {_noClimbAvailableNotificationBackgroundImage != null}, InfoBox: {_infoBox != null}");
         }
         
         private void FindScrollViewElements()
@@ -231,14 +232,14 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             Transform scrollView = UIElementFinder.FindTransform(_climbsPage.transform, "ClimbsScrollView");
             if (scrollView == null)
             {
-                Debug.LogError("[ClimbsTab] ScrollView not found!");
+                ModLogger.Instance?.Error("[ClimbsTab] ScrollView not found!");
                 return;
             }
             
             _scrollViewport = scrollView.Find("ClimbsScrollViewport");
             if (_scrollViewport == null)
             {
-                Debug.LogError("[ClimbsTab] Viewport not found!");
+                ModLogger.Instance?.Error("[ClimbsTab] Viewport not found!");
                 return;
             }
             
@@ -246,7 +247,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             _contentParent = _scrollViewport.Find("ClimbScrollContent");
             if (_contentParent == null)
             {
-                Debug.LogError("[ClimbsTab] ClimbScrollContent object not found in viewport!");
+                ModLogger.Instance?.Error("[ClimbsTab] ClimbScrollContent object not found in viewport!");
                 return;
             }
             
@@ -267,21 +268,21 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     _climbContentPrefab = assetBundleService.GetPrefab("climbscrollcontent");
                     if (_climbContentPrefab != null)
                     {
-                        Debug.Log("[ClimbsTab] ClimbScrollContent prefab loaded successfully");
+                        ModLogger.Instance?.Info("[ClimbsTab] ClimbScrollContent prefab loaded successfully");
                     }
                     else
                     {
-                        Debug.LogError("[ClimbsTab] ClimbScrollContent prefab not found in AssetBundle");
+                        ModLogger.Instance?.Error("[ClimbsTab] ClimbScrollContent prefab not found in AssetBundle");
                     }
                 }
                 else
                 {
-                    Debug.LogError("[ClimbsTab] AssetBundleService not available");
+                    ModLogger.Instance?.Error("[ClimbsTab] AssetBundleService not available");
                 }
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[ClimbsTab] Error loading ClimbScrollContent prefab: {ex.Message}");
+                ModLogger.Instance?.Error($"[ClimbsTab] Error loading ClimbScrollContent prefab: {ex.Message}");
             }
         }
         
@@ -303,7 +304,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             _scrollRect = scrollView.GetComponent<ScrollRect>();
             if (_scrollRect == null)
             {
-                Debug.LogError("[ClimbsTab] ScrollRect component missing on ScrollView!");
+                ModLogger.Instance?.Error("[ClimbsTab] ScrollRect component missing on ScrollView!");
                 return;
             }
             
@@ -311,12 +312,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_contentParent != null)
             {
                 _scrollRect.content = _contentParent.GetComponent<RectTransform>();
-                Debug.Log("[ClimbsTab] ScrollRect content set to ClimbScrollContent object");
+                ModLogger.Instance?.Info("[ClimbsTab] ScrollRect content set to ClimbScrollContent object");
             }
             
             // Set scroll sensitivity for faster scrolling
             _scrollRect.scrollSensitivity = 50f; // Default is 1, higher = faster
-            Debug.Log($"[ClimbsTab] ScrollRect sensitivity set to: {_scrollRect.scrollSensitivity}");
+            ModLogger.Instance?.Info($"[ClimbsTab] ScrollRect sensitivity set to: {_scrollRect.scrollSensitivity}");
             
             // Setup layout on the ClimbScrollContent object (where items will be added)
             if (_contentParent != null)
@@ -331,7 +332,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     layoutGroup.childForceExpandHeight = false;
                     layoutGroup.childForceExpandWidth = true;
                     layoutGroup.padding = new RectOffset(10, 10, 10, 10);
-                    Debug.Log("[ClimbsTab] VerticalLayoutGroup added to Content");
+                    ModLogger.Instance?.Info("[ClimbsTab] VerticalLayoutGroup added to Content");
                 }
                 
                 var sizeFitter = _contentParent.GetComponent<ContentSizeFitter>();
@@ -340,7 +341,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     sizeFitter = _contentParent.gameObject.AddComponent<ContentSizeFitter>();
                     sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
                     sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                    Debug.Log("[ClimbsTab] ContentSizeFitter added to ClimbScrollContent");
+                    ModLogger.Instance?.Info("[ClimbsTab] ContentSizeFitter added to ClimbScrollContent");
                 }
                 
                 // Make ClimbScrollContent background transparent (both Image and RawImage)
@@ -350,7 +351,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     var color = contentImage.color;
                     color.a = 0f; // Set alpha to 0 (transparent)
                     contentImage.color = color;
-                    Debug.Log($"[ClimbsTab] ClimbScrollContent Image background set to transparent (alpha: {color.a})");
+                    ModLogger.Instance?.Info($"[ClimbsTab] ClimbScrollContent Image background set to transparent (alpha: {color.a})");
                 }
                 
                 var contentRawImage = _contentParent.GetComponent<UnityEngine.UI.RawImage>();
@@ -359,12 +360,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     var color = contentRawImage.color;
                     color.a = 0f; // Set alpha to 0 (transparent)
                     contentRawImage.color = color;
-                    Debug.Log($"[ClimbsTab] ClimbScrollContent RawImage background set to transparent (alpha: {color.a})");
+                    ModLogger.Instance?.Info($"[ClimbsTab] ClimbScrollContent RawImage background set to transparent (alpha: {color.a})");
                 }
                 
                 if (contentImage == null && contentRawImage == null)
                 {
-                    Debug.LogWarning("[ClimbsTab] ClimbScrollContent has no Image or RawImage component - cannot set transparency");
+                    ModLogger.Instance?.Warning("[ClimbsTab] ClimbScrollContent has no Image or RawImage component - cannot set transparency");
                 }
             }
             
@@ -375,11 +376,11 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 var color = scrollViewImage.color;
                 color.a = 0f; // Set alpha to 0 (transparent)
                 scrollViewImage.color = color;
-                Debug.Log($"[ClimbsTab] ScrollView background set to transparent (alpha: {color.a})");
+                ModLogger.Instance?.Info($"[ClimbsTab] ScrollView background set to transparent (alpha: {color.a})");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] ScrollView Image component not found - cannot set transparency");
+                ModLogger.Instance?.Warning("[ClimbsTab] ScrollView Image component not found - cannot set transparency");
             }
         }
         
@@ -425,7 +426,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             toggle.onValueChanged.AddListener((bool value) => {
                 if (value)
                 {
-                    Debug.Log($"[ClimbsTab] Filter activated: {filter}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Filter activated: {filter}");
                     _filterManager.SetFilter(filter);
                     
                     // Convert filter to biome name for API call
@@ -438,7 +439,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 }
                 else if (!IsAnyFilterActive())
                 {
-                    Debug.Log("[ClimbsTab] All filters deactivated, showing all climbs");
+                    ModLogger.Instance?.Info("[ClimbsTab] All filters deactivated, showing all climbs");
                     _filterManager.SetFilter(ClimbFilterManager.BiomeFilter.All);
                     
                     // Reload from server without biome filter but keep other filters
@@ -479,14 +480,14 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     // Check if BOTH climb code AND ascent filter are empty
                     if (string.IsNullOrEmpty(climbCode) && _ascentFilter == null)
                     {
-                        Debug.Log("[ClimbsTab] Both climb code and ascent empty - refreshing with biome filter and default sort");
+                        ModLogger.Instance?.Info("[ClimbsTab] Both climb code and ascent empty - refreshing with biome filter and default sort");
                         
                         // Keep biome filter, clear ascent, reset duration sort to default
                         RefreshWithDefaults();
                     }
                     else if (!string.IsNullOrEmpty(climbCode))
                     {
-                        Debug.Log($"[ClimbsTab] Searching with peak_code filter: {climbCode}");
+                        ModLogger.Instance?.Info($"[ClimbsTab] Searching with peak_code filter: {climbCode}");
                         
                         // Clear all filters for peak code search to ensure climb is found
                         ClearAllFiltersForSearch();
@@ -496,7 +497,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     }
                     else if (_ascentFilter != null)
                     {
-                        Debug.Log($"[ClimbsTab] Searching with ascent filter: {_ascentFilter}");
+                        ModLogger.Instance?.Info($"[ClimbsTab] Searching with ascent filter: {_ascentFilter}");
                         
                         // Keep current filters and search with ascent
                         string currentBiome = GetCurrentBiomeFilter();
@@ -520,7 +521,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void ClearAllFiltersForSearch()
         {
-            Debug.Log("[ClimbsTab] Clearing all filters for peak code search");
+            ModLogger.Instance?.Info("[ClimbsTab] Clearing all filters for peak code search");
             
             // Clear biome filter toggles
             if (_beachToggle != null) _beachToggle.isOn = false;
@@ -544,7 +545,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void RefreshWithDefaults()
         {
-            Debug.Log("[ClimbsTab] Refreshing with defaults - keeping biome filter, resetting sort");
+            ModLogger.Instance?.Info("[ClimbsTab] Refreshing with defaults - keeping biome filter, resetting sort");
             
             // Keep current biome filter
             string currentBiome = GetCurrentBiomeFilter();
@@ -586,12 +587,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     if (string.IsNullOrEmpty(value))
                     {
                         _ascentFilter = null;
-                        Debug.Log("[ClimbsTab] Ascent filter cleared");
+                        ModLogger.Instance?.Info("[ClimbsTab] Ascent filter cleared");
                     }
                     else if (int.TryParse(value, out int ascent))
                     {
                         _ascentFilter = ascent;
-                        Debug.Log($"[ClimbsTab] Ascent filter set to: {ascent}");
+                        ModLogger.Instance?.Info($"[ClimbsTab] Ascent filter set to: {ascent}");
                     }
                     
                     // Reload with ALL current filters
@@ -619,7 +620,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     // Apply duration sorting on server
                     _serverLoader?.ApplyDurationSorting(_sortByDurationAscending);
                     
-                    Debug.Log($"[ClimbsTab] Duration sorting activated: {(_sortByDurationAscending ? "Ascending" : "Descending")}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Duration sorting activated: {(_sortByDurationAscending ? "Ascending" : "Descending")}");
                     // Note: RefreshClimbsList will be called by OnServerClimbsLoaded event
                 });
                 
@@ -635,7 +636,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             {
                 _climbVisibilityAllOffButton.onClick.RemoveAllListeners();
                 _climbVisibilityAllOffButton.onClick.AddListener(() => {
-                    Debug.Log("[ClimbsTab] Visibility All Off - Hiding all climbs");
+                    ModLogger.Instance?.Info("[ClimbsTab] Visibility All Off - Hiding all climbs");
                     
                     // Clear all visible climb IDs
                     var previousVisibleIds = new List<string>(_visibleClimbIds);
@@ -656,85 +657,85 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     // Refresh the list to update all toggles
                     RefreshClimbsList();
                     
-                    Debug.Log($"[ClimbsTab] All {previousVisibleIds.Count} climbs hidden");
+                    ModLogger.Instance?.Info($"[ClimbsTab] All {previousVisibleIds.Count} climbs hidden");
                 });
             }
         }
         
         private void SetupInfoBox()
         {
-            Debug.Log("[ClimbsTab] SetupInfoBox - Hiding all notifications initially");
+            ModLogger.Instance?.Info("[ClimbsTab] SetupInfoBox - Hiding all notifications initially");
             
             if (_notOnIslandNotification != null)
             {
                 _notOnIslandNotification.SetActive(false);
-                Debug.Log("[ClimbsTab] NotOnIslandNotification hidden");
+                ModLogger.Instance?.Info("[ClimbsTab] NotOnIslandNotification hidden");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] NotOnIslandNotification is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] NotOnIslandNotification is null!");
             }
             
             if (_notOnIslandNotificationBackgroundImage != null)
             {
                 _notOnIslandNotificationBackgroundImage.SetActive(false);
-                Debug.Log("[ClimbsTab] NotOnIslandNotificationBackgroundImage hidden");
+                ModLogger.Instance?.Info("[ClimbsTab] NotOnIslandNotificationBackgroundImage hidden");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] NotOnIslandNotificationBackgroundImage is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] NotOnIslandNotificationBackgroundImage is null!");
             }
             
             if (_noClimbAvailableNotification != null)
             {
                 _noClimbAvailableNotification.SetActive(false);
-                Debug.Log("[ClimbsTab] NoClimbAvailableNotification hidden");
+                ModLogger.Instance?.Info("[ClimbsTab] NoClimbAvailableNotification hidden");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] NoClimbAvailableNotification is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] NoClimbAvailableNotification is null!");
             }
             
             if (_noClimbAvailableNotificationBackgroundImage != null)
             {
                 _noClimbAvailableNotificationBackgroundImage.SetActive(false);
-                Debug.Log("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage hidden");
+                ModLogger.Instance?.Info("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage hidden");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] NoClimbAvailableNotificationBackgroundImage is null!");
             }
             
             if (_infoBox != null)
             {
                 _infoBox.SetActive(false);
-                Debug.Log("[ClimbsTab] InfoBox hidden");
+                ModLogger.Instance?.Info("[ClimbsTab] InfoBox hidden");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] InfoBox is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] InfoBox is null!");
             }
         }
         
         public void RefreshClimbsList()
         {
-            Debug.Log("[ClimbsTab] Refreshing climbs list using prefab system");
+            ModLogger.Instance?.Info("[ClimbsTab] Refreshing climbs list using prefab system");
             
             if (_climbDataService == null)
             {
-                Debug.LogError("[ClimbsTab] Cannot refresh - ClimbDataService is null");
+                ModLogger.Instance?.Error("[ClimbsTab] Cannot refresh - ClimbDataService is null");
                 return;
             }
             
             if (_contentParent == null)
             {
-                Debug.LogError("[ClimbsTab] Cannot refresh - Content parent is null");
+                ModLogger.Instance?.Error("[ClimbsTab] Cannot refresh - Content parent is null");
                 return;
             }
             
             if (_climbContentPrefab == null)
             {
-                Debug.LogError("[ClimbsTab] Cannot refresh - ClimbContent prefab is null");
+                ModLogger.Instance?.Error("[ClimbsTab] Cannot refresh - ClimbContent prefab is null");
                 return;
             }
             
@@ -783,7 +784,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             // Update info box notifications
             UpdateInfoBoxNotifications(isInLevel, climbsToDisplay.Count);
             
-            Debug.Log($"[ClimbsTab] Creating {climbsToDisplay.Count} climb items using prefab system");
+            ModLogger.Instance?.Info($"[ClimbsTab] Creating {climbsToDisplay.Count} climb items using prefab system");
             
             // Create prefab instances for each climb
             foreach (var climb in climbsToDisplay)
@@ -795,7 +796,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (_contentParent != null)
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_contentParent.GetComponent<RectTransform>());
-                Debug.Log("[ClimbsTab] Layout rebuild completed");
+                ModLogger.Instance?.Info("[ClimbsTab] Layout rebuild completed");
             }
         }
         
@@ -813,7 +814,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 }
             }
             
-            Debug.Log("[ClimbsTab] Cleared all content items");
+            ModLogger.Instance?.Info("[ClimbsTab] Cleared all content items");
         }
         
         private void CreateClimbPrefabItem(ClimbData climb)
@@ -825,7 +826,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 
                 if (climbItem == null)
                 {
-                    Debug.LogError("[ClimbsTab] Failed to instantiate climb prefab");
+                    ModLogger.Instance?.Error("[ClimbsTab] Failed to instantiate climb prefab");
                     return;
                 }
                 
@@ -833,11 +834,11 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 // Since ClimbListItemController doesn't exist, use basic data population
                 PopulateBasicClimbData(climbItem, climb);
                 
-                Debug.Log($"[ClimbsTab] Created prefab item for climb {climb.Id}");
+                ModLogger.Instance?.Info($"[ClimbsTab] Created prefab item for climb {climb.Id}");
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[ClimbsTab] Error creating prefab item for climb {climb.Id}: {ex.Message}");
+                ModLogger.Instance?.Error($"[ClimbsTab] Error creating prefab item for climb {climb.Id}: {ex.Message}");
             }
         }
         
@@ -851,7 +852,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetOfflineIndicator(climbItem, climb);
             SetDeathClimbIndicator(climbItem, climb);
             
-            Debug.Log($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s, IsOffline: {!climb.IsFromCloud}");
+            ModLogger.Instance?.Info($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s, IsOffline: {!climb.IsFromCloud}");
         }
         
         private void SetBiomeIcon(GameObject item, string biomeName)
@@ -972,7 +973,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                     copyButton.onClick.RemoveAllListeners();
                     copyButton.onClick.AddListener(() => {
                         GUIUtility.systemCopyBuffer = climb.ShareCode;
-                        Debug.Log($"[ClimbsTab] Copied share code: {climb.ShareCode}");
+                        ModLogger.Instance?.Info($"[ClimbsTab] Copied share code: {climb.ShareCode}");
                     });
                     copyButton.gameObject.SetActive(true);
                 }
@@ -996,12 +997,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 
                 if (isOffline)
                 {
-                    Debug.Log($"[ClimbsTab] Showing offline indicator for local climb {climb.Id}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Showing offline indicator for local climb {climb.Id}");
                 }
             }
             else
             {
-                Debug.LogWarning($"[ClimbsTab] OfflineImage not found in climb item for climb {climb.Id}");
+                ModLogger.Instance?.Warning($"[ClimbsTab] OfflineImage not found in climb item for climb {climb.Id}");
             }
         }
         
@@ -1018,12 +1019,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 
                 if (isDeathClimb)
                 {
-                    Debug.Log($"[ClimbsTab] Showing death indicator for death climb {climb.Id}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Showing death indicator for death climb {climb.Id}");
                 }
             }
             else
             {
-                Debug.LogWarning($"[ClimbsTab] DeathImage not found in climb item for climb {climb.Id}");
+                ModLogger.Instance?.Warning($"[ClimbsTab] DeathImage not found in climb item for climb {climb.Id}");
             }
         }
         
@@ -1034,7 +1035,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             // If not in a valid level, return empty list
             if (!IsPlayerInValidLevel())
             {
-                Debug.Log("[ClimbsTab] Not in valid level, returning empty climb list");
+                ModLogger.Instance?.Info("[ClimbsTab] Not in valid level, returning empty climb list");
                 return displayClimbs;
             }
             
@@ -1053,7 +1054,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 var filteredServerClimbs = _filterManager.FilterClimbs(_serverLoader.CurrentPageClimbs);
                 if (_serverLoader.CurrentPageClimbs.Count != filteredServerClimbs.Count)
                 {
-                    Debug.Log($"[ClimbsTab] Filtered server climbs: {_serverLoader.CurrentPageClimbs.Count} -> {filteredServerClimbs.Count} (Filter: {_filterManager.CurrentFilter})");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Filtered server climbs: {_serverLoader.CurrentPageClimbs.Count} -> {filteredServerClimbs.Count} (Filter: {_filterManager.CurrentFilter})");
                 }
                 displayClimbs.AddRange(filteredServerClimbs);
                 
@@ -1069,7 +1070,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void OnClimbVisibilityToggled(ClimbData climb, bool isVisible)
         {
-            Debug.Log($"[ClimbsTab] Climb {climb.Id} visibility: {isVisible}");
+            ModLogger.Instance?.Info($"[ClimbsTab] Climb {climb.Id} visibility: {isVisible}");
             
             if (isVisible)
                 _visibleClimbIds.Add(climb.Id.ToString());
@@ -1128,64 +1129,64 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             bool showNotOnIsland = !isInLevel;
             bool showNoClimbs = isInLevel && climbCount == 0;
             
-            Debug.Log($"[ClimbsTab] UpdateInfoBox - InLevel: {isInLevel}, ClimbCount: {climbCount}, ShowNotOnIsland: {showNotOnIsland}, ShowNoClimbs: {showNoClimbs}");
+            ModLogger.Instance?.Info($"[ClimbsTab] UpdateInfoBox - InLevel: {isInLevel}, ClimbCount: {climbCount}, ShowNotOnIsland: {showNotOnIsland}, ShowNoClimbs: {showNoClimbs}");
             
             if (_notOnIslandNotification != null)
             {
                 _notOnIslandNotification.SetActive(showNotOnIsland);
-                Debug.Log($"[ClimbsTab] NotOnIslandNotification set to: {showNotOnIsland}");
+                ModLogger.Instance?.Info($"[ClimbsTab] NotOnIslandNotification set to: {showNotOnIsland}");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] Cannot update NotOnIslandNotification - reference is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] Cannot update NotOnIslandNotification - reference is null!");
             }
             
             if (_notOnIslandNotificationBackgroundImage != null)
             {
                 _notOnIslandNotificationBackgroundImage.SetActive(showNotOnIsland);
-                Debug.Log($"[ClimbsTab] NotOnIslandNotificationBackgroundImage set to: {showNotOnIsland}");
+                ModLogger.Instance?.Info($"[ClimbsTab] NotOnIslandNotificationBackgroundImage set to: {showNotOnIsland}");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] Cannot update NotOnIslandNotificationBackgroundImage - reference is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] Cannot update NotOnIslandNotificationBackgroundImage - reference is null!");
             }
             
             if (_noClimbAvailableNotification != null)
             {
                 _noClimbAvailableNotification.SetActive(showNoClimbs);
-                Debug.Log($"[ClimbsTab] NoClimbAvailableNotification set to: {showNoClimbs}");
+                ModLogger.Instance?.Info($"[ClimbsTab] NoClimbAvailableNotification set to: {showNoClimbs}");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] Cannot update NoClimbAvailableNotification - reference is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] Cannot update NoClimbAvailableNotification - reference is null!");
             }
             
             if (_noClimbAvailableNotificationBackgroundImage != null)
             {
                 _noClimbAvailableNotificationBackgroundImage.SetActive(showNoClimbs);
-                Debug.Log($"[ClimbsTab] NoClimbAvailableNotificationBackgroundImage set to: {showNoClimbs}");
+                ModLogger.Instance?.Info($"[ClimbsTab] NoClimbAvailableNotificationBackgroundImage set to: {showNoClimbs}");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] Cannot update NoClimbAvailableNotificationBackgroundImage - reference is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] Cannot update NoClimbAvailableNotificationBackgroundImage - reference is null!");
             }
             
             // InfoBox nur anzeigen wenn eine Notification aktiv ist
             if (_infoBox != null)
             {
                 _infoBox.SetActive(showNotOnIsland || showNoClimbs);
-                Debug.Log($"[ClimbsTab] InfoBox set to: {showNotOnIsland || showNoClimbs}");
+                ModLogger.Instance?.Info($"[ClimbsTab] InfoBox set to: {showNotOnIsland || showNoClimbs}");
             }
             else
             {
-                Debug.LogWarning("[ClimbsTab] Cannot update InfoBox - reference is null!");
+                ModLogger.Instance?.Warning("[ClimbsTab] Cannot update InfoBox - reference is null!");
             }
         }
         
         // Called when the climbs page becomes visible
         public void OnShow()
         {
-            Debug.Log("[ClimbsTab] OnShow - Force reloading data");
+            ModLogger.Instance?.Info("[ClimbsTab] OnShow - Force reloading data");
             
             // Check if player is in valid level first
             bool isInLevel = IsPlayerInValidLevel();
@@ -1199,7 +1200,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 string currentBiome = GetCurrentBiomeFilter();
                 string climbCode = _climbCodeInput?.text?.Trim() ?? "";
                 
-                Debug.Log("[ClimbsTab] Forcing reload with current filters");
+                ModLogger.Instance?.Info("[ClimbsTab] Forcing reload with current filters");
                 _serverLoader?.ForceReload(currentBiome, _ascentFilter, climbCode);
             }
             else
@@ -1217,7 +1218,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         // Server loader event handlers
         private void OnServerClimbsLoaded(List<ClimbData> serverClimbs)
         {
-            Debug.Log($"[ClimbsTab] Server climbs loaded: {serverClimbs.Count} items");
+            ModLogger.Instance?.Info($"[ClimbsTab] Server climbs loaded: {serverClimbs.Count} items");
             
             // Clear climb code input if we just did a peak code search
             string currentPeakCode = _climbCodeInput?.text?.Trim() ?? "";
@@ -1227,7 +1228,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                 if (_climbCodeInput != null)
                 {
                     _climbCodeInput.text = "";
-                    Debug.Log($"[ClimbsTab] Cleared climb code input after successful search");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Cleared climb code input after successful search");
                 }
             }
             
@@ -1243,34 +1244,34 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         private void OnServerLoadError(string error)
         {
-            Debug.LogWarning($"[ClimbsTab] Server load error: {error}");
+            ModLogger.Instance?.Warning($"[ClimbsTab] Server load error: {error}");
             // Could show this error in UI if needed
         }
         
         private void OnPaginationUpdated(int currentPage, int totalPages)
         {
-            Debug.Log($"[ClimbsTab] Pagination updated: Page {currentPage + 1}/{totalPages}");
+            ModLogger.Instance?.Info($"[ClimbsTab] Pagination updated: Page {currentPage + 1}/{totalPages}");
             // Could update pagination UI here if needed
         }
         
         public void ShowUpdateMessage(UpdateMessage message)
         {
-            Debug.Log($"[ClimbsTab] ShowUpdateMessage called - HasUpdate: {message?.HasUpdate}, Dismissed: {_updateMessageDismissed}");
+            ModLogger.Instance?.Info($"[ClimbsTab] ShowUpdateMessage called - HasUpdate: {message?.HasUpdate}, Dismissed: {_updateMessageDismissed}");
             
             if (message == null || !message.HasUpdate || _updateMessageDismissed)
             {
-                Debug.Log("[ClimbsTab] Not showing message (null, no update, or dismissed)");
+                ModLogger.Instance?.Info("[ClimbsTab] Not showing message (null, no update, or dismissed)");
                 return;
             }
             
             _currentUpdateMessage = message;
             
-            Debug.Log($"[ClimbsTab] UpdateMessageBox: {_updateMessageBox != null}, Text: {_updateMessageText != null}, Background: {_updateMessageBackground != null}");
+            ModLogger.Instance?.Info($"[ClimbsTab] UpdateMessageBox: {_updateMessageBox != null}, Text: {_updateMessageText != null}, Background: {_updateMessageBackground != null}");
             
             if (_updateMessageBox != null && _updateMessageText != null)
             {
                 _updateMessageText.text = message.Message;
-                Debug.Log($"[ClimbsTab] Set message text: {message.Message}");
+                ModLogger.Instance?.Info($"[ClimbsTab] Set message text: {message.Message}");
                 
                 // Set background color based on type (use separate Background element)
                 if (_updateMessageBackground != null)
@@ -1287,15 +1288,15 @@ namespace FollowMePeak.ModMenu.UI.Tabs
                             _updateMessageBackground.color = new Color(0.3f, 0.6f, 1f, 0.9f); // Blue
                             break;
                     }
-                    Debug.Log($"[ClimbsTab] Set background color for type: {message.Type}");
+                    ModLogger.Instance?.Info($"[ClimbsTab] Set background color for type: {message.Type}");
                 }
                 
                 _updateMessageBox.SetActive(true);
-                Debug.Log($"[ClimbsTab] UpdateMessageBox activated - showing message");
+                ModLogger.Instance?.Info($"[ClimbsTab] UpdateMessageBox activated - showing message");
             }
             else
             {
-                Debug.LogError($"[ClimbsTab] Cannot show message - UpdateMessageBox or Text is null!");
+                ModLogger.Instance?.Error($"[ClimbsTab] Cannot show message - UpdateMessageBox or Text is null!");
             }
         }
         
@@ -1306,7 +1307,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             {
                 _updateMessageBox.SetActive(false);
             }
-            Debug.Log("[ClimbsTab] Update message dismissed by user");
+            ModLogger.Instance?.Info("[ClimbsTab] Update message dismissed by user");
         }
         
         public void ResetUpdateMessageState()
@@ -1316,7 +1317,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         
         public void Cleanup()
         {
-            Debug.Log("[ClimbsTab] Cleaning up");
+            ModLogger.Instance?.Info("[ClimbsTab] Cleaning up");
             
             // Cleanup UI listeners
             if (_climbCodeSearchButton != null)

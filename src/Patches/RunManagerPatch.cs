@@ -1,6 +1,7 @@
 using HarmonyLib;
 using BepInEx.Logging;
 using System.Reflection;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Patches
 {
@@ -9,7 +10,7 @@ namespace FollowMePeak.Patches
     /// </summary>
     public static class RunManagerPatch
     {
-        private static ManualLogSource Logger = BepInEx.Logging.Logger.CreateLogSource("RunManagerPatch");
+        // Use ModLogger.Instance instead of own logger
         
         public static void ApplyPatch(Harmony harmony)
         {
@@ -19,7 +20,7 @@ namespace FollowMePeak.Patches
                 var runManagerType = System.Type.GetType("RunManager, Assembly-CSharp");
                 if (runManagerType == null)
                 {
-                    Logger.LogError("Could not find RunManager type");
+                    ModLogger.Instance?.Error("Could not find RunManager type");
                     return;
                 }
                 
@@ -27,7 +28,7 @@ namespace FollowMePeak.Patches
                 var startRunMethod = runManagerType.GetMethod("StartRun", BindingFlags.Public | BindingFlags.Instance);
                 if (startRunMethod == null)
                 {
-                    Logger.LogError("Could not find StartRun method in RunManager");
+                    ModLogger.Instance?.Error("Could not find StartRun method in RunManager");
                     return;
                 }
                 
@@ -35,17 +36,17 @@ namespace FollowMePeak.Patches
                 var postfixMethod = typeof(RunManagerPatch).GetMethod(nameof(StartRunPostfix), BindingFlags.Static | BindingFlags.Public);
                 harmony.Patch(startRunMethod, postfix: new HarmonyMethod(postfixMethod));
                 
-                Logger.LogInfo("Successfully patched RunManager.StartRun");
+                ModLogger.Instance?.Info("Successfully patched RunManager.StartRun");
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"Failed to patch RunManager: {ex}");
+                ModLogger.Instance?.Error($"Failed to patch RunManager: {ex}");
             }
         }
         
         public static void StartRunPostfix()
         {
-            Logger.LogInfo("[RunManagerPatch] RunManager.StartRun called - RUN STARTED!");
+            ModLogger.Instance?.Info("[RunManagerPatch] RunManager.StartRun called - RUN STARTED!");
             
             // Notify Plugin
             Plugin.Instance?.OnRunStartedFromPatch();

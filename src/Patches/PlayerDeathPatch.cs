@@ -3,12 +3,13 @@ using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using BepInEx.Logging;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Patches
 {
     public class PlayerDeathPatch
     {
-        private static ManualLogSource Logger = BepInEx.Logging.Logger.CreateLogSource("PlayerDeathPatch");
+        // Use ModLogger.Instance instead of own logger
         
         // Try to patch the RPCA_Die method using reflection
         public static void ApplyPatch(Harmony harmony)
@@ -29,11 +30,11 @@ namespace FollowMePeak.Patches
                         // Use high priority to ensure death is detected before other patches
                         var harmonyMethod = new HarmonyMethod(postfix) { priority = Priority.High };
                         harmony.Patch(rpca_die_method, postfix: harmonyMethod);
-                        Logger.LogInfo("Successfully patched RPCA_Die method for death detection with high priority");
+                        ModLogger.Instance?.Info("Successfully patched RPCA_Die method for death detection with high priority");
                     }
                     else
                     {
-                        Logger.LogWarning("Could not find RPCA_Die method");
+                        ModLogger.Instance?.Warning("Could not find RPCA_Die method");
                     }
                     
                     // Also try to patch Die method
@@ -44,17 +45,17 @@ namespace FollowMePeak.Patches
                         // Use high priority to ensure death is detected before other patches
                         var harmonyMethod = new HarmonyMethod(postfix) { priority = Priority.High };
                         harmony.Patch(die_method, postfix: harmonyMethod);
-                        Logger.LogInfo("Successfully patched Die method for death detection with high priority");
+                        ModLogger.Instance?.Info("Successfully patched Die method for death detection with high priority");
                     }
                 }
                 else
                 {
-                    Logger.LogInfo("Could not find Character type for patching - using direct detection instead");
+                    ModLogger.Instance?.Info("Could not find Character type for patching - using direct detection instead");
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Failed to apply death detection patches: {ex.Message}");
+                ModLogger.Instance?.Error($"Failed to apply death detection patches: {ex.Message}");
             }
         }
         
@@ -100,7 +101,7 @@ namespace FollowMePeak.Patches
                     }
                 }
                 
-                Logger.LogInfo("[Death] Local player death detected via Harmony patch");
+                ModLogger.Instance?.Info("[Death] Local player death detected via Harmony patch");
                 
                 // Notify the recording manager only for local player
                 if (Plugin.Instance != null)
@@ -111,7 +112,7 @@ namespace FollowMePeak.Patches
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error in death postfix: {ex.Message}");
+                ModLogger.Instance?.Error($"Error in death postfix: {ex.Message}");
             }
         }
     }

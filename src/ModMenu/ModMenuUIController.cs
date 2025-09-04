@@ -1,8 +1,9 @@
 using UnityEngine;
-using FollowMePeak.Services;
-using FollowMePeak.Managers;
 using FollowMePeak.ModMenu.UI;
 using FollowMePeak.ModMenu.UI.Tabs;
+using FollowMePeak.Services;
+using FollowMePeak.Managers;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu
 {
@@ -26,7 +27,7 @@ namespace FollowMePeak.ModMenu
         
         public void Initialize(GameObject menuRoot)
         {
-            Debug.Log("[ModMenuUI] Initializing UI Controller");
+            ModLogger.Instance?.Info("[ModMenuUI] Initializing UI Controller");
             
             // Get services from ModMenuManager
             InitializeServices();
@@ -42,7 +43,7 @@ namespace FollowMePeak.ModMenu
             // Set initial tab
             _tabManager.SetActiveTab("Climbs");
             
-            Debug.Log("[ModMenuUI] UI Controller initialized successfully");
+            ModLogger.Instance?.Info("[ModMenuUI] UI Controller initialized successfully");
         }
         
         private void InitializeServices()
@@ -68,7 +69,7 @@ namespace FollowMePeak.ModMenu
         
         private void OnTabChanged(string tabName)
         {
-            Debug.Log($"[ModMenuUI] Tab changed to: {tabName}");
+            ModLogger.Instance?.Info($"[ModMenuUI] Tab changed to: {tabName}");
             
             switch (tabName)
             {
@@ -85,7 +86,7 @@ namespace FollowMePeak.ModMenu
         // Called when the menu is opened
         public void OnMenuOpened()
         {
-            Debug.Log("[ModMenuUI] Menu opened - triggering OnShow for active tab");
+            ModLogger.Instance?.Info("[ModMenuUI] Menu opened - triggering OnShow for active tab");
             
             // Get the current active tab from TabManager and trigger OnShow
             string activeTab = _tabManager?.GetActiveTab();
@@ -102,7 +103,7 @@ namespace FollowMePeak.ModMenu
         
         public void Cleanup()
         {
-            Debug.Log("[ModMenuUI] Cleaning up UI Controller");
+            ModLogger.Instance?.Info("[ModMenuUI] Cleaning up UI Controller");
             
             // Cleanup tab controllers
             _climbsTab?.Cleanup();

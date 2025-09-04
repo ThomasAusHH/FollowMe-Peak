@@ -3,6 +3,7 @@ using BepInEx.Logging;
 using System.Reflection;
 using System.Linq;
 using Zorro.Core;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Patches
 {
@@ -11,7 +12,7 @@ namespace FollowMePeak.Patches
     /// </summary>
     public static class EndGamePatch
     {
-        private static ManualLogSource Logger = BepInEx.Logging.Logger.CreateLogSource("EndGamePatch");
+        // Use ModLogger.Instance instead of own logger
         private static bool _gameEndingDetected = false;
         
         public static void ApplyPatch(Harmony harmony)
@@ -23,29 +24,29 @@ namespace FollowMePeak.Patches
                 // Approach 1: Try to patch Character.EndGame directly
                 if (TryPatchCharacterEndGame(harmony))
                 {
-                    Logger.LogInfo("Successfully patched Character.EndGame");
+                    ModLogger.Instance?.Info("Successfully patched Character.EndGame");
                     return;
                 }
                 
                 // Approach 2: Try to patch RunManager.EndGame as alternative
                 if (TryPatchRunManagerEndGame(harmony))
                 {
-                    Logger.LogInfo("Successfully patched RunManager.EndGame");
+                    ModLogger.Instance?.Info("Successfully patched RunManager.EndGame");
                     return;
                 }
                 
                 // Approach 3: Try to patch PeakSequence.CheckGameComplete as fallback
                 if (TryPatchPeakSequence(harmony))
                 {
-                    Logger.LogInfo("Successfully patched PeakSequence.CheckGameComplete as fallback");
+                    ModLogger.Instance?.Info("Successfully patched PeakSequence.CheckGameComplete as fallback");
                     return;
                 }
                 
-                Logger.LogError("Failed to apply any EndGame patches - Peak ending detection will not work");
+                ModLogger.Instance?.Error("Failed to apply any EndGame patches - Peak ending detection will not work");
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"Failed to patch EndGame: {ex}");
+                ModLogger.Instance?.Error($"Failed to patch EndGame: {ex}");
             }
         }
         
@@ -56,7 +57,7 @@ namespace FollowMePeak.Patches
                 var characterType = System.Type.GetType("Character, Assembly-CSharp");
                 if (characterType == null)
                 {
-                    Logger.LogWarning("Could not find Character type");
+                    ModLogger.Instance?.Warning("Could not find Character type");
                     return false;
                 }
                 
@@ -68,7 +69,7 @@ namespace FollowMePeak.Patches
                     BindingFlags.Static
                 );
                 
-                Logger.LogInfo($"Found {allMethods.Length} methods in Character class");
+                ModLogger.Instance?.Info($"Found {allMethods.Length} methods in Character class");
                 
                 // Look for EndGame with various binding flags
                 var endGameMethod = allMethods.FirstOrDefault(m => m.Name == "EndGame");
@@ -77,11 +78,11 @@ namespace FollowMePeak.Patches
                 {
                     // Log some method names for debugging
                     var methodNames = allMethods.Select(m => m.Name).Distinct().Take(20);
-                    Logger.LogWarning($"EndGame not found. Sample methods: {string.Join(", ", methodNames)}");
+                    ModLogger.Instance?.Warning($"EndGame not found. Sample methods: {string.Join(", ", methodNames)}");
                     return false;
                 }
                 
-                Logger.LogInfo($"Found EndGame method: {endGameMethod.Name}, IsPublic: {endGameMethod.IsPublic}");
+                ModLogger.Instance?.Info($"Found EndGame method: {endGameMethod.Name}, IsPublic: {endGameMethod.IsPublic}");
                 
                 var prefixMethod = typeof(EndGamePatch).GetMethod(
                     nameof(CharacterEndGamePrefix), 
@@ -95,7 +96,7 @@ namespace FollowMePeak.Patches
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"TryPatchCharacterEndGame failed: {ex}");
+                ModLogger.Instance?.Error($"TryPatchCharacterEndGame failed: {ex}");
                 return false;
             }
         }
@@ -107,7 +108,7 @@ namespace FollowMePeak.Patches
                 var runManagerType = System.Type.GetType("RunManager, Assembly-CSharp");
                 if (runManagerType == null)
                 {
-                    Logger.LogWarning("Could not find RunManager type");
+                    ModLogger.Instance?.Warning("Could not find RunManager type");
                     return false;
                 }
                 
@@ -119,11 +120,11 @@ namespace FollowMePeak.Patches
                 
                 if (endGameMethod == null)
                 {
-                    Logger.LogWarning("Could not find RunManager.EndGame method");
+                    ModLogger.Instance?.Warning("Could not find RunManager.EndGame method");
                     return false;
                 }
                 
-                Logger.LogInfo("Found RunManager.EndGame method");
+                ModLogger.Instance?.Info("Found RunManager.EndGame method");
                 
                 var prefixMethod = typeof(EndGamePatch).GetMethod(
                     nameof(RunManagerEndGamePrefix),
@@ -137,7 +138,7 @@ namespace FollowMePeak.Patches
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"TryPatchRunManagerEndGame failed: {ex}");
+                ModLogger.Instance?.Error($"TryPatchRunManagerEndGame failed: {ex}");
                 return false;
             }
         }
@@ -149,7 +150,7 @@ namespace FollowMePeak.Patches
                 var peakSequenceType = System.Type.GetType("PeakSequence, Assembly-CSharp");
                 if (peakSequenceType == null)
                 {
-                    Logger.LogWarning("Could not find PeakSequence type");
+                    ModLogger.Instance?.Warning("Could not find PeakSequence type");
                     return false;
                 }
                 
@@ -161,11 +162,11 @@ namespace FollowMePeak.Patches
                 
                 if (checkGameCompleteMethod == null)
                 {
-                    Logger.LogWarning("Could not find CheckGameComplete method");
+                    ModLogger.Instance?.Warning("Could not find CheckGameComplete method");
                     return false;
                 }
                 
-                Logger.LogInfo("Found CheckGameComplete method");
+                ModLogger.Instance?.Info("Found CheckGameComplete method");
                 
                 var postfixMethod = typeof(EndGamePatch).GetMethod(
                     nameof(PeakSequenceCheckGameCompletePostfix),
@@ -179,7 +180,7 @@ namespace FollowMePeak.Patches
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"TryPatchPeakSequence failed: {ex}");
+                ModLogger.Instance?.Error($"TryPatchPeakSequence failed: {ex}");
                 return false;
             }
         }
@@ -192,14 +193,14 @@ namespace FollowMePeak.Patches
                 // First check if player has already died this session
                 if (Managers.ClimbRecordingManager.PlayerDiedThisSession)
                 {
-                    Logger.LogInfo("[EndGamePatch] EndGame called but player already died - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] EndGame called but player already died - not a helicopter ending");
                     return;
                 }
                 
                 // Check if player is actually dead (additional safety check)
                 if (Character.localCharacter != null && Character.localCharacter.data.dead)
                 {
-                    Logger.LogInfo("[EndGamePatch] EndGame called but player is dead - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] EndGame called but player is dead - not a helicopter ending");
                     return;
                 }
                 
@@ -207,27 +208,27 @@ namespace FollowMePeak.Patches
                 if (mapHandler != null)
                 {
                     var currentSegment = mapHandler.GetCurrentSegment();
-                    Logger.LogInfo($"[EndGamePatch] Character.EndGame called in segment: {currentSegment}");
+                    ModLogger.Instance?.Info($"[EndGamePatch] Character.EndGame called in segment: {currentSegment}");
                     
                     // Helicopter ending occurs in TheKiln segment AND player must be alive
                     if (currentSegment == Segment.TheKiln)
                     {
-                        Logger.LogInfo("[EndGamePatch] Helicopter ending detected at TheKiln (Peak)!");
+                        ModLogger.Instance?.Info("[EndGamePatch] Helicopter ending detected at TheKiln (Peak)!");
                         NotifyPlugin();
                     }
                     else
                     {
-                        Logger.LogInfo($"[EndGamePatch] EndGame in {currentSegment} - not at Peak");
+                        ModLogger.Instance?.Info($"[EndGamePatch] EndGame in {currentSegment} - not at Peak");
                     }
                 }
                 else
                 {
-                    Logger.LogWarning("[EndGamePatch] MapHandler not available, cannot verify segment");
+                    ModLogger.Instance?.Warning("[EndGamePatch] MapHandler not available, cannot verify segment");
                 }
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"[EndGamePatch] Error checking segment: {ex.Message}");
+                ModLogger.Instance?.Error($"[EndGamePatch] Error checking segment: {ex.Message}");
             }
         }
         
@@ -239,14 +240,14 @@ namespace FollowMePeak.Patches
                 // First check if player has already died this session
                 if (Managers.ClimbRecordingManager.PlayerDiedThisSession)
                 {
-                    Logger.LogInfo("[EndGamePatch] RunManager.EndGame called but player already died - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] RunManager.EndGame called but player already died - not a helicopter ending");
                     return;
                 }
                 
                 // Check if player is actually dead (additional safety check)
                 if (Character.localCharacter != null && Character.localCharacter.data.dead)
                 {
-                    Logger.LogInfo("[EndGamePatch] RunManager.EndGame called but player is dead - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] RunManager.EndGame called but player is dead - not a helicopter ending");
                     return;
                 }
                 
@@ -254,27 +255,27 @@ namespace FollowMePeak.Patches
                 if (mapHandler != null)
                 {
                     var currentSegment = mapHandler.GetCurrentSegment();
-                    Logger.LogInfo($"[EndGamePatch] RunManager.EndGame called in segment: {currentSegment}");
+                    ModLogger.Instance?.Info($"[EndGamePatch] RunManager.EndGame called in segment: {currentSegment}");
                     
                     // Helicopter ending occurs in TheKiln segment AND player must be alive
                     if (currentSegment == Segment.TheKiln)
                     {
-                        Logger.LogInfo("[EndGamePatch] Helicopter ending detected at TheKiln (Peak)!");
+                        ModLogger.Instance?.Info("[EndGamePatch] Helicopter ending detected at TheKiln (Peak)!");
                         NotifyPlugin();
                     }
                     else
                     {
-                        Logger.LogInfo($"[EndGamePatch] EndGame in {currentSegment} - not at Peak");
+                        ModLogger.Instance?.Info($"[EndGamePatch] EndGame in {currentSegment} - not at Peak");
                     }
                 }
                 else
                 {
-                    Logger.LogWarning("[EndGamePatch] MapHandler not available, cannot verify segment");
+                    ModLogger.Instance?.Warning("[EndGamePatch] MapHandler not available, cannot verify segment");
                 }
             }
             catch (System.Exception ex)
             {
-                Logger.LogError($"[EndGamePatch] Error checking segment: {ex.Message}");
+                ModLogger.Instance?.Error($"[EndGamePatch] Error checking segment: {ex.Message}");
             }
         }
         
@@ -286,14 +287,14 @@ namespace FollowMePeak.Patches
                 // First check if player has already died this session
                 if (Managers.ClimbRecordingManager.PlayerDiedThisSession)
                 {
-                    Logger.LogInfo("[EndGamePatch] PeakSequence ending but player already died - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] PeakSequence ending but player already died - not a helicopter ending");
                     return;
                 }
                 
                 // Check if player is actually dead (additional safety check)
                 if (Character.localCharacter != null && Character.localCharacter.data.dead)
                 {
-                    Logger.LogInfo("[EndGamePatch] PeakSequence ending but player is dead - not a helicopter ending");
+                    ModLogger.Instance?.Info("[EndGamePatch] PeakSequence ending but player is dead - not a helicopter ending");
                     return;
                 }
                 
@@ -304,13 +305,13 @@ namespace FollowMePeak.Patches
                     if (mapHandler != null)
                     {
                         var currentSegment = mapHandler.GetCurrentSegment();
-                        Logger.LogInfo($"[EndGamePatch] PeakSequence ending in segment: {currentSegment}");
+                        ModLogger.Instance?.Info($"[EndGamePatch] PeakSequence ending in segment: {currentSegment}");
                         
                         // Helicopter ending occurs in TheKiln segment AND player must be alive
                         if (currentSegment == Segment.TheKiln)
                         {
                             _gameEndingDetected = true;
-                            Logger.LogInfo("[EndGamePatch] PeakSequence helicopter ending confirmed at TheKiln!");
+                            ModLogger.Instance?.Info("[EndGamePatch] PeakSequence helicopter ending confirmed at TheKiln!");
                             NotifyPlugin();
                         }
                     }
@@ -318,13 +319,13 @@ namespace FollowMePeak.Patches
                     {
                         // If MapHandler not available but we're in PeakSequence and player is alive, assume it's valid
                         _gameEndingDetected = true;
-                        Logger.LogInfo("[EndGamePatch] PeakSequence ending detected (MapHandler unavailable)");
+                        ModLogger.Instance?.Info("[EndGamePatch] PeakSequence ending detected (MapHandler unavailable)");
                         NotifyPlugin();
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    Logger.LogError($"[EndGamePatch] Error in PeakSequence check: {ex.Message}");
+                    ModLogger.Instance?.Error($"[EndGamePatch] Error in PeakSequence check: {ex.Message}");
                     // If error but we're in PeakSequence and player is alive, assume it's valid
                     _gameEndingDetected = true;
                     NotifyPlugin();

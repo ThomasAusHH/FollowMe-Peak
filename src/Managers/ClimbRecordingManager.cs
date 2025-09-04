@@ -1,10 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using BepInEx.Logging;
 using UnityEngine;
 using FollowMePeak.Models;
 using FollowMePeak.Services;
+using FollowMePeak.Utils;
 using Zorro.Core;
 
 namespace FollowMePeak.Managers
@@ -12,7 +12,7 @@ namespace FollowMePeak.Managers
     public class ClimbRecordingManager
     {
         private readonly ClimbDataService _climbDataService;
-        private readonly ManualLogSource _logger;
+        private readonly ModLogger _logger;
         
         private List<Vector3> _currentRecordedClimb = new List<Vector3>();
         private float _recordingStartTime;
@@ -24,7 +24,7 @@ namespace FollowMePeak.Managers
         public static bool PlayerDiedThisSession { get; private set; } = false;
 
         public bool IsRecording { get; private set; } = false;
-        public ClimbRecordingManager(ClimbDataService climbDataService, ManualLogSource logger, MonoBehaviour coroutineRunner)
+        public ClimbRecordingManager(ClimbDataService climbDataService, ModLogger logger, MonoBehaviour coroutineRunner)
         {
             _climbDataService = climbDataService;
             _logger = logger;
@@ -35,14 +35,14 @@ namespace FollowMePeak.Managers
         {
             if (IsRecording) 
             {
-                _logger.LogWarning("Recording already active - stopping previous recording before starting new one");
+                _logger.Warning("Recording already active - stopping previous recording before starting new one");
                 StopRecording();
             }
             
             // Check if we're in a valid level
             if (!UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.StartsWith("Level_"))
             {
-                _logger.LogWarning("StartRecording called but not in a Level scene");
+                _logger.Warning("StartRecording called but not in a Level scene");
                 return;
             }
             
@@ -57,7 +57,7 @@ namespace FollowMePeak.Managers
             // Reset Fly Detection for new recording (safety reset)
             Detection.SimpleFlyDetector.ResetForNewRecording();
             
-            _logger.LogInfo("[ClimbRecording] Started by RUN STARTED event!");
+            _logger.Info("[ClimbRecording] Started by RUN STARTED event!");
             _coroutineRunner.StartCoroutine(RecordClimbRoutine());
         }
 
@@ -69,12 +69,12 @@ namespace FollowMePeak.Managers
             // Clear recorded data if we have less than minimum points (incomplete climb)
             if (_currentRecordedClimb.Count < 2)
             {
-                _logger.LogInfo($"Recording stopped with insufficient data ({_currentRecordedClimb.Count} points) - clearing");
+                _logger.Info($"Recording stopped with insufficient data ({_currentRecordedClimb.Count} points) - clearing");
                 _currentRecordedClimb = new List<Vector3>();
             }
             else
             {
-                _logger.LogInfo($"Recording stopped. {_currentRecordedClimb.Count} points cached for potential save.");
+                _logger.Info($"Recording stopped. {_currentRecordedClimb.Count} points cached for potential save.");
             }
         }
 
@@ -83,7 +83,7 @@ namespace FollowMePeak.Managers
             // Special handling for Peak ending (helicopter)
             if (biomeName == "Peak")
             {
-                _logger.LogInfo("[Helicopter] Saving Peak climb from helicopter ending");
+                _logger.Info("[Helicopter] Saving Peak climb from helicopter ending");
             }
             
             StopRecording();
@@ -94,7 +94,7 @@ namespace FollowMePeak.Managers
             // Check if death was detected and if we should save death climbs
             if (_wasDeathDetected && !Plugin.SaveDeathClimbs.Value)
             {
-                _logger.LogInfo("Climb not saved: Player died during recording and SaveDeathClimbs is disabled.");
+                _logger.Info("Climb not saved: Player died during recording and SaveDeathClimbs is disabled.");
                 _currentRecordedClimb = [];
                 return;
             }
@@ -111,7 +111,7 @@ namespace FollowMePeak.Managers
             string flaggedReason = Detection.SimpleFlyDetector.ReasonForCurrentRecording;
             
             // Debug log to verify flag capture
-            _logger.LogInfo($"[FlyDetection] Captured before async: Flagged={wasFlagged}, Score={flaggedScore}, Reason={flaggedReason}");
+            _logger.Info($"[FlyDetection] Captured before async: Flagged={wasFlagged}, Score={flaggedScore}, Reason={flaggedReason}");
 
             BepInEx.ThreadingHelper.Instance.StartAsyncInvoke(CreateClimbData);
             return;
@@ -142,17 +142,17 @@ namespace FollowMePeak.Managers
 
             void AfterClimbIsCreated(ClimbData newClimbData)
             {
-                _logger.LogInfo($"Climb saved with ascent level: {newClimbData.AscentLevel}");
+                _logger.Info($"Climb saved with ascent level: {newClimbData.AscentLevel}");
                 
                 // Log detection state if flagged
                 if (newClimbData.WasFlagged)
                 {
-                    _logger.LogWarning($"[FlyDetection] Climb was flagged: Score={newClimbData.FlaggedScore}, Reason={newClimbData.FlaggedReason}");
+                    _logger.Warning($"[FlyDetection] Climb was flagged: Score={newClimbData.FlaggedScore}, Reason={newClimbData.FlaggedReason}");
                 }
                 
                 if (newClimbData.WasDeathClimb)
                 {
-                    _logger.LogWarning($"[Death] Climb was saved where player died (will not be uploaded to cloud)");
+                    _logger.Warning($"[Death] Climb was saved where player died (will not be uploaded to cloud)");
                 }
 
                 _climbDataService.AddClimb(newClimbData);
@@ -166,7 +166,7 @@ namespace FollowMePeak.Managers
         private void ShowTagSelectionForNewClimb(ClimbData climbData)
         {
             // We'll trigger this through the Plugin to show the tag selection UI
-            _logger.LogInfo($"Neue Kletterroute erstellt: {climbData.GetDisplayName()} (Code: {climbData.ShareCode})");
+            _logger.Info($"Neue Kletterroute erstellt: {climbData.GetDisplayName()} (Code: {climbData.ShareCode})");
             
             // Trigger tag selection in the UI
             Plugin.Instance.ShowTagSelectionForNewClimb(climbData);
@@ -177,17 +177,17 @@ namespace FollowMePeak.Managers
         {
             // Set static flag immediately to prevent helicopter detection
             PlayerDiedThisSession = true;
-            _logger.LogInfo("[Death] Death flag set - helicopter detection disabled");
+            _logger.Info("[Death] Death flag set - helicopter detection disabled");
             
             if (IsRecording)
             {
                 _wasDeathDetected = true;
-                _logger.LogInfo("[Death] Player death detected during recording");
+                _logger.Info("[Death] Player death detected during recording");
                 
                 // Save the death climb if configured to do so
                 if (Plugin.SaveDeathClimbs.Value && _currentRecordedClimb.Count >= 2)
                 {
-                    _logger.LogInfo("[Death] Saving death climb as configured");
+                    _logger.Info("[Death] Saving death climb as configured");
                     // We need to get the biome name - use "Death" as fallback if we can't determine it
                     string biomeName = GetCurrentBiomeName();
                     SaveCurrentClimb(biomeName);
@@ -195,7 +195,7 @@ namespace FollowMePeak.Managers
                 else
                 {
                     StopRecording();
-                    _logger.LogInfo("[Death] Death climb not saved (SaveDeathClimbs is disabled or too few points)");
+                    _logger.Info("[Death] Death climb not saved (SaveDeathClimbs is disabled or too few points)");
                 }
             }
         }
@@ -227,7 +227,7 @@ namespace FollowMePeak.Managers
                 if (Character.localCharacter != null && Character.localCharacter.data.dead)
                 {
                     _wasDeathDetected = true;
-                    _logger.LogInfo("[Death] Player death detected during recording");
+                    _logger.Info("[Death] Player death detected during recording");
                     StopRecording();
                     yield break;
                 }

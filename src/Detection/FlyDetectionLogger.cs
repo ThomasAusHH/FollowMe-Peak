@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 using BepInEx.Logging;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.Detection
 {
@@ -36,6 +37,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void LogDetectionEvent(float score, List<string> flags, Vector3 position, Vector3 velocity, string playerName = "Unknown")
         {
+            if (ModLogger.CurrentLevel < FollowMePeak.Utils.LogLevel.Warning)
+                return;
+                
             var message = FormatDetectionMessage(score, flags, position, velocity, playerName);
             
             // Log to console
@@ -53,6 +57,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void LogClimbFlagged(string climbName, float score, string playerName = "Unknown")
         {
+            if (ModLogger.CurrentLevel < FollowMePeak.Utils.LogLevel.Warning)
+                return;
+                
             var message = new StringBuilder();
             message.AppendLine("[FlyDetection] === CLIMB FLAGGED ===");
             message.AppendLine($"[FlyDetection] Climb: {climbName}");
@@ -76,6 +83,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void LogInfo(string message)
         {
+            if (ModLogger.CurrentLevel < FollowMePeak.Utils.LogLevel.Info)
+                return;
+                
             logger.LogInfo($"[FlyDetection] {message}");
             
             if (fileLoggingEnabled)
@@ -89,6 +99,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void LogWarning(string message)
         {
+            if (ModLogger.CurrentLevel < FollowMePeak.Utils.LogLevel.Warning)
+                return;
+                
             logger.LogWarning($"[FlyDetection] {message}");
             
             if (fileLoggingEnabled)
@@ -102,6 +115,9 @@ namespace FollowMePeak.Detection
         /// </summary>
         public static void LogError(string message)
         {
+            if (ModLogger.CurrentLevel < FollowMePeak.Utils.LogLevel.Error)
+                return;
+                
             logger.LogError($"[FlyDetection] {message}");
             
             if (fileLoggingEnabled)

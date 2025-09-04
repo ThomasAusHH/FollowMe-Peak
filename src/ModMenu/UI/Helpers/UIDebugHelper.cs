@@ -1,5 +1,6 @@
-using UnityEngine;
 using System.Linq;
+using UnityEngine;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI.Helpers
 {
@@ -19,7 +20,7 @@ namespace FollowMePeak.ModMenu.UI.Helpers
             Component[] components = transform.GetComponents<Component>();
             string componentList = string.Join(", ", components.Select(c => c?.GetType()?.Name ?? "null"));
             
-            Debug.Log($"{prefix} {indent}└─ {transform.name} (Active: {transform.gameObject.activeSelf}) [Components: {componentList}]");
+            ModLogger.Instance?.Info($"{prefix} {indent}└─ {transform.name} (Active: {transform.gameObject.activeSelf}) [Components: {componentList}]");
             
             // Recursively log children
             for (int i = 0; i < transform.childCount; i++)

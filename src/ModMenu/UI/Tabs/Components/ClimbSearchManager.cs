@@ -1,8 +1,13 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using FollowMePeak.Services;
+using UnityEngine.UI;
+using TMPro;
 using FollowMePeak.Models;
+using FollowMePeak.Services;
+using FollowMePeak.Utils;
 
 namespace FollowMePeak.ModMenu.UI.Tabs.Components
 {
@@ -24,12 +29,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         {
             if (string.IsNullOrWhiteSpace(searchCode))
             {
-                Debug.Log("[ClimbSearch] No climb code entered");
+                ModLogger.Instance?.Info("[ClimbSearch] No climb code entered");
                 return;
             }
             
             searchCode = searchCode.Trim();
-            Debug.Log($"[ClimbSearch] Searching for climb code: {searchCode}");
+            ModLogger.Instance?.Info($"[ClimbSearch] Searching for climb code: {searchCode}");
             
             // Search locally first
             var existingClimb = _climbDataService.GetAllClimbs()
@@ -38,7 +43,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             
             if (existingClimb != null)
             {
-                Debug.Log($"[ClimbSearch] Found climb locally: {existingClimb.GetDisplayName()}");
+                ModLogger.Instance?.Info($"[ClimbSearch] Found climb locally: {existingClimb.GetDisplayName()}");
                 OnClimbFound?.Invoke(existingClimb);
             }
             else
@@ -51,7 +56,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         {
             if (_apiService == null)
             {
-                Debug.LogError("[ClimbSearch] API Service not available for server search");
+                ModLogger.Instance?.Error("[ClimbSearch] API Service not available for server search");
                 OnSearchFailed?.Invoke("API Service not available");
                 return;
             }
@@ -63,13 +68,13 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     climbData.IsFromCloud = true;
                     _climbDataService.AddClimb(climbData);
                     
-                    Debug.Log($"[ClimbSearch] Climb found on server: {climbData.GetDisplayName()}");
+                    ModLogger.Instance?.Info($"[ClimbSearch] Climb found on server: {climbData.GetDisplayName()}");
                     OnClimbFound?.Invoke(climbData);
                 }
                 else
                 {
                     string message = $"Climb code '{peakCode}' not found. {error ?? "Climb does not exist."}";
-                    Debug.Log($"[ClimbSearch] {message}");
+                    ModLogger.Instance?.Info($"[ClimbSearch] {message}");
                     OnSearchFailed?.Invoke(message);
                 }
             });

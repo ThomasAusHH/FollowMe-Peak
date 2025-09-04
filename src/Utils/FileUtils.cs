@@ -1,14 +1,13 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using BepInEx.Logging;
 using Newtonsoft.Json;
 
 namespace FollowMePeak.Utils
 {
     public static class FileUtils
 {
-    public static Task WriteJsonFileInBackground(ManualLogSource logger, string filePath, object payload)
+    public static Task WriteJsonFileInBackground(ModLogger logger, string filePath, object payload)
     {
         return Task.Run(SerializeAndSave);
 
@@ -22,7 +21,7 @@ namespace FollowMePeak.Utils
             catch (Exception e)
             {
                 BepInEx.ThreadingHelper.Instance.StartSyncInvoke(() => 
-                    logger.LogError($"Failed to save {filePath}: {e.Message}"));
+                    logger.Error($"Failed to save {filePath}: {e.Message}"));
             }
         }
     }
