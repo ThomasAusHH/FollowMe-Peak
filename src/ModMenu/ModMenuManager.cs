@@ -225,19 +225,13 @@ namespace FollowMePeak.ModMenu
             ModLogger.Instance?.Info("[ModMenu] Keeping Unity's positioning and size settings");
             
             // Check and setup EventSystem
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null)
+            if (EventSystem.current == null)
             {
-                ModLogger.Instance?.Warning("[ModMenu] No EventSystem found - creating one");
-                var eventSystemGO = new GameObject("ModMenuEventSystem");
-                eventSystem = eventSystemGO.AddComponent<EventSystem>();
-                var inputModule = eventSystemGO.AddComponent<StandaloneInputModule>();
-                Object.DontDestroyOnLoad(eventSystemGO);
-                ModLogger.Instance?.Info("[ModMenu] EventSystem created");
+                ModLogger.Instance?.Error("[ModMenu] No EventSystem found in the scene! The UI will not be clickable. This is unexpected.");
             }
             else
             {
-                ModLogger.Instance?.Info($"[ModMenu] EventSystem already exists: {eventSystem.name}");
+                ModLogger.Instance?.Info($"[ModMenu] EventSystem already exists: {EventSystem.current.name}");
             }
             
             // Ensure GraphicRaycaster can receive events
@@ -286,8 +280,8 @@ namespace FollowMePeak.ModMenu
                     }
                 }
                 
-                // Set raycastTarget to true for interactive elements
-                img.raycastTarget = true;
+                // DO NOT force raycastTarget here. It should be set correctly in the prefab.
+                // Forcing it to true makes non-interactive backgrounds block clicks.
                 ModLogger.Instance?.Info($"[ModMenu]   - {img.name}: color={img.color}, raycastTarget={img.raycastTarget}");
             }
             
@@ -476,41 +470,28 @@ namespace FollowMePeak.ModMenu
             bool newState = !_assetBundleMenuInstance.activeSelf;
             _assetBundleMenuInstance.SetActive(newState);
             ModLogger.Instance?.Info($"[ModMenu] AssetBundle menu toggled to: {newState}");
+
+            // Let the game's own UI (e.g. ESC menu) handle cursor locking/unlocking
+            // to avoid conflicts with other mods like AdvancedConsole.
             
-            // Handle cursor visibility and input
             if (newState)
             {
-                // Enable cursor for menu interaction
-                Cursor.visible = true;
-                Cursor.lockState = CursorLockMode.None;
-                ModLogger.Instance?.Info("[ModMenu] Cursor enabled for menu interaction");
-                
                 // Ensure EventSystem is active
                 var eventSystem = EventSystem.current;
                 if (eventSystem != null)
                 {
                     eventSystem.enabled = true;
-                    ModLogger.Instance?.Info($"[ModMenu] EventSystem enabled: {eventSystem.name}");
-                    
                     // Force update EventSystem to recognize UI
                     eventSystem.SetSelectedGameObject(null);
-                    
-                    // Check if we can interact with UI
-                    var raycaster = _assetBundleMenuInstance.GetComponentInChildren<GraphicRaycaster>();
-                    if (raycaster != null)
-                    {
-                        ModLogger.Instance?.Info($"[ModMenu] GraphicRaycaster found and active: {raycaster.enabled}");
-                    }
                 }
                 
-                // Bring menu to front - finde das richtige Canvas im Container
+                // Bring menu to front
                 Canvas[] canvases = _assetBundleMenuInstance.GetComponentsInChildren<Canvas>();
                 foreach (var canvas in canvases)
                 {
                     if (canvas != null)
                     {
                         canvas.sortingOrder = 32767; // Ensure it's on top
-                        ModLogger.Instance?.Info($"[ModMenu] Canvas '{canvas.name}' sortingOrder set to: {canvas.sortingOrder}");
                     }
                 }
                 
@@ -522,12 +503,7 @@ namespace FollowMePeak.ModMenu
             }
             else
             {
-                // Restore game's cursor state
-                Cursor.visible = false;
-                Cursor.lockState = CursorLockMode.Locked;
-                ModLogger.Instance?.Info("[ModMenu] Cursor disabled - returning to game");
-                
-                // Clear any selected UI element
+                // Clear any selected UI element when closing
                 var eventSystem = EventSystem.current;
                 if (eventSystem != null)
                 {
