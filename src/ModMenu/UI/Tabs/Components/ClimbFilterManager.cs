@@ -45,7 +45,8 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
                     return normalizedBiome.Contains("beach");
                     
                 case BiomeFilter.Tropics:
-                    return normalizedBiome.Contains("tropic") || 
+                    return normalizedBiome.Contains("tropic") ||
+                           normalizedBiome.Contains("roots") ||
                            normalizedBiome.Contains("jungle");
                     
                 case BiomeFilter.AlpineMesa:

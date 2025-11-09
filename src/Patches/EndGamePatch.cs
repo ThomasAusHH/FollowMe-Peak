@@ -197,13 +197,6 @@ namespace FollowMePeak.Patches
                     return;
                 }
                 
-                // Check if player is actually dead (additional safety check)
-                if (Character.localCharacter != null && Character.localCharacter.data.dead)
-                {
-                    ModLogger.Instance?.Info("[EndGamePatch] EndGame called but player is dead - not a helicopter ending");
-                    return;
-                }
-                
                 var mapHandler = Zorro.Core.Singleton<MapHandler>.Instance;
                 if (mapHandler != null)
                 {
@@ -244,13 +237,6 @@ namespace FollowMePeak.Patches
                     return;
                 }
                 
-                // Check if player is actually dead (additional safety check)
-                if (Character.localCharacter != null && Character.localCharacter.data.dead)
-                {
-                    ModLogger.Instance?.Info("[EndGamePatch] RunManager.EndGame called but player is dead - not a helicopter ending");
-                    return;
-                }
-                
                 var mapHandler = Zorro.Core.Singleton<MapHandler>.Instance;
                 if (mapHandler != null)
                 {
@@ -288,13 +274,6 @@ namespace FollowMePeak.Patches
                 if (Managers.ClimbRecordingManager.PlayerDiedThisSession)
                 {
                     ModLogger.Instance?.Info("[EndGamePatch] PeakSequence ending but player already died - not a helicopter ending");
-                    return;
-                }
-                
-                // Check if player is actually dead (additional safety check)
-                if (Character.localCharacter != null && Character.localCharacter.data.dead)
-                {
-                    ModLogger.Instance?.Info("[EndGamePatch] PeakSequence ending but player is dead - not a helicopter ending");
                     return;
                 }
                 

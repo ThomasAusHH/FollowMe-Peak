@@ -1,6 +1,9 @@
 using BepInEx;
+using BepInEx.Bootstrap;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
+using System;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -52,6 +55,10 @@ namespace FollowMePeak
         // Game state tracking
         private bool _gameEndedThisSession = false;
         
+        // Mod activity tracking
+        private Dictionary<string, DateTime> _lastModActivity = new Dictionary<string, DateTime>();
+        private Dictionary<string, int> _modUsageCount = new Dictionary<string, int>();
+        
         // Public access for services (needed by other components)
         public ClimbDataService ClimbDataService => _climbDataService;
         public ClimbRecordingManager GetRecordingManager() => _recordingManager;
@@ -90,8 +97,42 @@ namespace FollowMePeak
             // Apply EndGame patch for helicopter ending
             EndGamePatch.ApplyPatch(_harmony);
             
-            _modLogger.Info("Harmony Patches applied.");
+            _modLogger.Info("Harmony Patches applied. TEST");
+            
+            // Log all installed BepInEx mods (delayed to ensure all plugins are loaded)
+            _modLogger.Info("[Plugin] About to start DelayedLogInstalledMods coroutine...");
+            StartCoroutine(DelayedLogInstalledMods());
+            _modLogger.Info("[Plugin] DelayedLogInstalledMods coroutine started!");
         }
+
+        private void LogInstalledMods()
+        {
+            _modLogger.Info("=== Installed BepInEx Mods ===");
+            
+            var installedPlugins = Chainloader.PluginInfos;
+            _modLogger.Info($"Total installed plugins: {installedPlugins.Count}");
+            
+            foreach (var plugin in installedPlugins.Values)
+            {
+                var metadata = plugin.Metadata;
+                _modLogger.Info($"Plugin: {metadata.Name} v{metadata.Version} (GUID: {metadata.GUID})");
+            }
+            
+            _modLogger.Info("==============================");
+        }
+
+        private IEnumerator DelayedLogInstalledMods()
+        {
+            _modLogger.Info("[Plugin] Starting delayed mod listing coroutine...");
+            // Wait a few seconds to ensure all BepInEx plugins are loaded
+            yield return new WaitForSeconds(3f);
+            _modLogger.Info("[Plugin] 3 seconds elapsed, logging installed mods...");
+            LogInstalledMods();
+        }
+
+
+
+
 
         private void InitializeServices()
         {

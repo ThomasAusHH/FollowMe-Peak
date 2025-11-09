@@ -103,7 +103,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             if (toggleGroup != null)
             {
                 _beachToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "BeachToggle");
-                _tropicsToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "TropicsToggle");
+                _tropicsToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "TropicsRootsToggle");
                 _alpineMesaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "AlpineMesaToggle");
                 _calderaToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "CalderaToggle");
                 _peakToggle = UIElementFinder.FindComponent<Toggle>(toggleGroup, "PeakToggle");
@@ -872,7 +872,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             
             if (normalizedBiome.Contains("beach"))
                 iconToShow = biomeIconArea.Find("BeachIcon");
-            else if (normalizedBiome.Contains("tropic"))
+            else if (normalizedBiome.Contains("tropic") || normalizedBiome.Contains("roots"))
                 iconToShow = biomeIconArea.Find("TropicsIcon");
             else if (normalizedBiome.Contains("alpine") || normalizedBiome.Contains("mesa"))
                 iconToShow = biomeIconArea.Find("AlpineMesaIcon");

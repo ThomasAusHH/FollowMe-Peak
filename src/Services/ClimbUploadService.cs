@@ -191,10 +191,9 @@ namespace FollowMePeak.Services
                 levelId = parts[1];
             }
 
-            // Update status
+            // Update status in memory
             item.Status = UploadStatus.Uploading;
             item.LastAttempt = DateTime.Now;
-            SaveQueue();
 
             _logger.Info($"Uploading climb {item.ClimbData.Id} (attempt {item.RetryCount + 1})");
 
@@ -240,8 +239,6 @@ namespace FollowMePeak.Services
                         _logger.Error($"Upload permanently failed for climb {item.ClimbData.Id}: {error}");
                     }
                 }
-
-                SaveQueue();
 
                 // Wait a bit before processing next item to avoid overwhelming server
                 Plugin.Instance.StartCoroutine(WaitAndProcessNext(items, index + 1, 2.0f));

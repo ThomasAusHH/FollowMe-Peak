@@ -223,14 +223,7 @@ namespace FollowMePeak.Managers
         {
             while (IsRecording)
             {
-                // Check if player died
-                if (Character.localCharacter != null && Character.localCharacter.data.dead)
-                {
-                    _wasDeathDetected = true;
-                    _logger.Info("[Death] Player death detected during recording");
-                    StopRecording();
-                    yield break;
-                }
+                // Player death is now handled by the PlayerDeathPatch via the OnPlayerDeath() event.
                 
                 // TODO: Is this still valid even if the player is in third-person view?
                 var camera = Camera.main;
