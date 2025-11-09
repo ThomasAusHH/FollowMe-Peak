@@ -79,7 +79,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
             
             if (normalizedBiome.Contains("beach"))
                 iconToShow = biomeIconArea.Find("BeachIcon");
-            else if (normalizedBiome.Contains("tropic"))
+            else if (normalizedBiome.Contains("tropic") || normalizedBiome.Contains("roots"))
                 iconToShow = biomeIconArea.Find("TropicsIcon");
             else if (normalizedBiome.Contains("alpine") || normalizedBiome.Contains("mesa"))
                 iconToShow = biomeIconArea.Find("AlpineMesaIcon");
