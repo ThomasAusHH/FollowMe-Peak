@@ -24,6 +24,7 @@ A BepInEx plugin for Peak that automatically records paths in levels and display
 
 - The plugin automatically starts path recording when a level is loaded
 - Press **F1** (or your configured hotkey) to open/close the settings menu
+- Press **F2** (or your configured hotkey) to quickly toggle the visibility of your currently selected climbs
 - In the menu you can:
   - Toggle path visibility on/off
   - Filter climbs by difficulty (Ascent level) / Biome / Climb Code
@@ -59,6 +60,28 @@ If the plugin doesn't work:
 3. Restart the game after installation
 
 ## Changelog
+
+### v1.0.6
+
+**New Features**
+- **UI hotkey mapping** - Added UI elements to map the shortcut key for toggling visibility of the last selected climbs (default F2).
+
+**Fixes**
+- Synchronized version numbers across all files.
+
+### v1.0.5
+
+**Fixes**
+- Fixed version number.
+
+### v1.0.4
+
+**New Features**
+- **Added support for the new 'Roots' biome** - Full integration of the new 'Roots' biome.
+
+**Fixes**
+- Fixed critical errors caused by a recent game update that led to crashes.
+- Resolved a file access conflict when saving the upload queue.
 
 ### v1.0.3
 

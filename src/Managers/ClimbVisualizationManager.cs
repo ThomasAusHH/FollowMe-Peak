@@ -12,6 +12,8 @@ namespace FollowMePeak.Managers
         private readonly ClimbDataService _climbDataService;
         private Dictionary<Guid, bool> _climbVisibility = new Dictionary<Guid, bool>();
         private Dictionary<Guid, GameObject> _climbVisualizerObjects = new Dictionary<Guid, GameObject>();
+        private List<Guid> _lastVisibleClimbIds = new List<Guid>();
+        private bool _routesAreGloballyHidden = false;
 
         public ClimbVisualizationManager(ClimbDataService climbDataService)
         {
@@ -51,6 +53,39 @@ namespace FollowMePeak.Managers
             foreach (var climb in _climbDataService.GetAllClimbs())
                 _climbVisibility[climb.Id] = false;
             UpdateVisuals();
+        }
+
+        public void ToggleAllVisibleRoutes()
+        {
+            if (!_routesAreGloballyHidden)
+            {
+                _lastVisibleClimbIds = _climbVisibility
+                    .Where(kv => kv.Value)
+                    .Select(kv => kv.Key)
+                    .ToList();
+                
+                foreach (var climb in _climbDataService.GetAllClimbs())
+                    _climbVisibility[climb.Id] = false;
+                
+                _routesAreGloballyHidden = true;
+                UpdateVisuals();
+            }
+            else
+            {
+                foreach (var id in _lastVisibleClimbIds)
+                {
+                    if (_climbVisibility.ContainsKey(id))
+                        _climbVisibility[id] = true;
+                }
+                
+                _routesAreGloballyHidden = false;
+                UpdateVisuals();
+            }
+        }
+
+        public bool AreRoutesGloballyHidden()
+        {
+            return _routesAreGloballyHidden;
         }
 
         public void InitializeClimbVisibility()

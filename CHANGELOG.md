@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.6] - 2026-06-27
+
+### New Features
+- **UI hotkey mapping** - Added UI elements to map the shortcut key for toggling visibility of the last selected climbs (Fixes #27).
+
+### Fixes
+- Synchronized version numbers across all manifest files, assemblies and code (Fixes #32).
+
+## [1.0.5] - 2025-11-09
+
+### Fixes
+- Fixed version number.
+
+## [1.0.4] - 2025-11-09
+
+### New Features
+- **Added support for the new 'Roots' biome** - Full integration of the new 'Roots' biome, which alternates with 'Tropics'.
+
+### Fixes
+- Fixed a critical error (`MissingFieldException`) caused by a recent game update, which led to crashes upon player death or at the end of a run.
+- Resolved a file access conflict that occurred when saving the upload queue, preventing climbs from being saved correctly after a successful upload.
+
 ## [1.0.3] - 2025-09-04
 
 ### New Features
