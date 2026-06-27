@@ -17,14 +17,15 @@ using FollowMePeak.Utils;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.3")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.6")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
-        public const string MOD_VERSION = "1.0.3";
+        public static readonly string MOD_VERSION = typeof(Plugin).Assembly.GetName().Version.ToString(3);
 
         // Controls Configuration
         public static BepInEx.Configuration.ConfigEntry<KeyCode> ModMenuToggleKey;
+        public static BepInEx.Configuration.ConfigEntry<KeyCode> ToggleRoutesVisibilityKey;
         
         // Gameplay Configuration  
         public static BepInEx.Configuration.ConfigEntry<bool> SaveDeathClimbs;
@@ -181,6 +182,13 @@ namespace FollowMePeak
                 "Key to toggle the mod menu"
             );
             
+            ToggleRoutesVisibilityKey = Config.Bind(
+                "Controls", 
+                "ToggleRoutesVisibilityKey", 
+                KeyCode.F2, 
+                "Key to toggle visibility of selected routes"
+            );
+            
             // Gameplay Configuration
             SaveDeathClimbs = Config.Bind(
                 "Gameplay",
@@ -263,6 +271,12 @@ namespace FollowMePeak
             {
                 _modLogger.Info($"[Plugin] {ModMenuToggleKey.Value} pressed - Toggling Mod Menu");
                 _modMenuManager?.ToggleAssetBundleMenu();
+            }
+            
+            if (Input.GetKeyDown(ToggleRoutesVisibilityKey.Value))
+            {
+                _modLogger.Info($"[Plugin] {ToggleRoutesVisibilityKey.Value} pressed - Toggling route visibility");
+                _visualizationManager?.ToggleAllVisibleRoutes();
             }
             
             // Update ModMenuManager for key recording

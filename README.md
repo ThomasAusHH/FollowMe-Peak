@@ -60,6 +60,20 @@ If the plugin doesn't work:
 
 ## Changelog
 
+### v1.0.5
+
+**Fixes**
+- Fixed version number.
+
+### v1.0.4
+
+**New Features**
+- **Added support for the new 'Roots' biome** - Full integration of the new 'Roots' biome.
+
+**Fixes**
+- Fixed critical errors caused by a recent game update that led to crashes.
+- Resolved a file access conflict when saving the upload queue.
+
 ### v1.0.3
 
 **New Features:**

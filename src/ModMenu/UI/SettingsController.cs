@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using BepInEx.Configuration;
 using FollowMePeak.ModMenu.UI.Helpers;
 using FollowMePeak.Utils;
 
@@ -13,18 +14,26 @@ namespace FollowMePeak.ModMenu.UI
         // UI Element References
         private GameObject _settingsButton;
         private GameObject _settingsMenuPanel;
-        private TMP_Text _actualToggleText;
-        private Button _recordToggleButton;
         private GameObject _pressAnyKeyText;
         private Button _applyButton;
         private Button _resetButton;
         private Button _closeButton;
         private Toggle _saveDeathClimbToggle;
         
-        // State
-        private bool _isRecording = false;
-        private KeyCode _pendingKey = KeyCode.None;
-        private KeyCode _originalKey;
+        // Key Bindings
+        private KeyBinding _menuToggleBinding;
+        private KeyBinding _routesToggleBinding;
+        
+        private class KeyBinding
+        {
+            public string Name;
+            public ConfigEntry<KeyCode> Config;
+            public TMP_Text DisplayText;
+            public Button RecordButton;
+            public KeyCode OriginalKey;
+            public KeyCode PendingKey;
+            public bool IsRecording;
+        }
         
         // Keys to exclude from recording
         private static readonly HashSet<KeyCode> InvalidKeys = new HashSet<KeyCode>
@@ -92,7 +101,6 @@ namespace FollowMePeak.ModMenu.UI
             if (_settingsMenuPanel != null)
             {
                 ModLogger.Instance?.Info($"[SettingsController] Found SettingsMenuPanel at: {UIElementFinder.GetTransformPath(_settingsMenuPanel.transform)}");
-                // IMPORTANT: Hide panel initially
                 _settingsMenuPanel.SetActive(false);
                 ModLogger.Instance?.Info("[SettingsController] Settings panel initially hidden");
             }
@@ -101,19 +109,25 @@ namespace FollowMePeak.ModMenu.UI
                 ModLogger.Instance?.Error("[SettingsController] SettingsMenuPanel not found!");
             }
             
-            // Find Actual Toggle Text with correct path
-            _actualToggleText = UIElementFinder.FindComponent<TMP_Text>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuActualToggle");
-            if (_actualToggleText == null && _settingsMenuPanel != null)
+            // Initialize Menu Toggle Binding
+            _menuToggleBinding = new KeyBinding
             {
-                // Try relative to panel
+                Name = "MenuToggle",
+                Config = Plugin.ModMenuToggleKey
+            };
+            
+            // Find Actual Toggle Text for menu
+            _menuToggleBinding.DisplayText = UIElementFinder.FindComponent<TMP_Text>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuActualToggle");
+            if (_menuToggleBinding.DisplayText == null && _settingsMenuPanel != null)
+            {
                 var actualToggle = _settingsMenuPanel.transform.Find("SettingsMenuActualToggle");
                 if (actualToggle != null)
                 {
-                    _actualToggleText = actualToggle.GetComponent<TMP_Text>();
+                    _menuToggleBinding.DisplayText = actualToggle.GetComponent<TMP_Text>();
                 }
             }
             
-            if (_actualToggleText != null)
+            if (_menuToggleBinding.DisplayText != null)
             {
                 ModLogger.Instance?.Info("[SettingsController] Found SettingsMenuActualToggle text component");
             }
@@ -122,31 +136,99 @@ namespace FollowMePeak.ModMenu.UI
                 ModLogger.Instance?.Warning("[SettingsController] SettingsMenuActualToggle text not found");
             }
             
-            // Find Record Button with correct path
-            var recordButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuRecordToggleButton");
-            if (recordButton == null && _settingsMenuPanel != null)
+            // Find Record Button for menu
+            var menuRecordButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuRecordToggleButton");
+            if (menuRecordButton == null && _settingsMenuPanel != null)
             {
-                // Try relative to panel
-                recordButton = _settingsMenuPanel.transform.Find("SettingsMenuRecordToggleButton")?.GetComponent<Button>();
+                menuRecordButton = _settingsMenuPanel.transform.Find("SettingsMenuRecordToggleButton")?.GetComponent<Button>();
             }
             
-            if (recordButton != null)
+            if (menuRecordButton != null)
             {
-                _recordToggleButton = recordButton;
-                _recordToggleButton.onClick.RemoveAllListeners();
-                _recordToggleButton.onClick.AddListener(StartKeyRecording);
-                ModLogger.Instance?.Info("[SettingsController] Record button found and listener added");
+                _menuToggleBinding.RecordButton = menuRecordButton;
+                _menuToggleBinding.RecordButton.onClick.RemoveAllListeners();
+                _menuToggleBinding.RecordButton.onClick.AddListener(() => StartKeyRecording(_menuToggleBinding));
+                ModLogger.Instance?.Info("[SettingsController] Menu record button found and listener added");
             }
             else
             {
                 ModLogger.Instance?.Error("[SettingsController] SettingsMenuRecordToggleButton not found!");
             }
             
+            // Initialize Routes Visibility Toggle Binding
+            _routesToggleBinding = new KeyBinding
+            {
+                Name = "RoutesVisibility",
+                Config = Plugin.ToggleRoutesVisibilityKey
+            };
+            
+            // Find Actual Toggle Text for routes visibility
+            _routesToggleBinding.DisplayText = UIElementFinder.FindComponent<TMP_Text>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuActualToggleLastSelected");
+            if (_routesToggleBinding.DisplayText == null && _settingsMenuPanel != null)
+            {
+                var visibilityToggle = _settingsMenuPanel.transform.Find("SettingsMenuActualToggleLastSelected");
+                if (visibilityToggle != null)
+                {
+                    _routesToggleBinding.DisplayText = visibilityToggle.GetComponent<TMP_Text>();
+                }
+            }
+            
+            // Fallback to old name just in case
+            if (_routesToggleBinding.DisplayText == null)
+            {
+                _routesToggleBinding.DisplayText = UIElementFinder.FindComponent<TMP_Text>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuActualVisibilityToggle");
+                if (_routesToggleBinding.DisplayText == null && _settingsMenuPanel != null)
+                {
+                    var visibilityToggle = _settingsMenuPanel.transform.Find("SettingsMenuActualVisibilityToggle");
+                    if (visibilityToggle != null)
+                    {
+                        _routesToggleBinding.DisplayText = visibilityToggle.GetComponent<TMP_Text>();
+                    }
+                }
+            }
+            
+            if (_routesToggleBinding.DisplayText != null)
+            {
+                ModLogger.Instance?.Info("[SettingsController] Found SettingsMenuActualToggleLastSelected text component");
+            }
+            else
+            {
+                ModLogger.Instance?.Warning("[SettingsController] SettingsMenuActualToggleLastSelected text not found");
+            }
+            
+            // Find Record Button for routes visibility
+            var routesRecordButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuRecordToggleButtonLastSelected");
+            if (routesRecordButton == null && _settingsMenuPanel != null)
+            {
+                routesRecordButton = _settingsMenuPanel.transform.Find("SettingsMenuRecordToggleButtonLastSelected")?.GetComponent<Button>();
+            }
+            
+            // Fallback to old name
+            if (routesRecordButton == null)
+            {
+                routesRecordButton = UIElementFinder.FindComponent<Button>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuRecordVisibilityButton");
+                if (routesRecordButton == null && _settingsMenuPanel != null)
+                {
+                    routesRecordButton = _settingsMenuPanel.transform.Find("SettingsMenuRecordVisibilityButton")?.GetComponent<Button>();
+                }
+            }
+            
+            if (routesRecordButton != null)
+            {
+                _routesToggleBinding.RecordButton = routesRecordButton;
+                _routesToggleBinding.RecordButton.onClick.RemoveAllListeners();
+                _routesToggleBinding.RecordButton.onClick.AddListener(() => StartKeyRecording(_routesToggleBinding));
+                ModLogger.Instance?.Info("[SettingsController] Routes visibility record button found and listener added");
+            }
+            else
+            {
+                ModLogger.Instance?.Warning("[SettingsController] SettingsMenuRecordToggleButtonLastSelected not found");
+            }
+            
             // Find Press Any Key Text with correct path
             _pressAnyKeyText = UIElementFinder.FindGameObject(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuPressAnyKey");
             if (_pressAnyKeyText == null && _settingsMenuPanel != null)
             {
-                // Try relative to panel
                 var pressAnyKeyTransform = _settingsMenuPanel.transform.Find("SettingsMenuPressAnyKey");
                 _pressAnyKeyText = pressAnyKeyTransform?.gameObject;
             }
@@ -229,12 +311,10 @@ namespace FollowMePeak.ModMenu.UI
             _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuSaveDeathClimbToggle");
             if (_saveDeathClimbToggle == null)
             {
-                // Try alternative name in case of typo in UI
                 _saveDeathClimbToggle = UIElementFinder.FindComponent<Toggle>(transform, "MyModMenuPanel/SettingsMenuPanel/SettingsMenuDaveDeathClimbToggle");
             }
             if (_saveDeathClimbToggle == null && _settingsMenuPanel != null)
             {
-                // Try relative to panel
                 var toggle = _settingsMenuPanel.transform.Find("SettingsMenuSaveDeathClimbToggle");
                 if (toggle == null)
                 {
@@ -258,12 +338,27 @@ namespace FollowMePeak.ModMenu.UI
                 ModLogger.Instance?.Warning("[SettingsController] Save Death Climb toggle not found");
             }
             
-            // Initialize current key display
-            _originalKey = Plugin.ModMenuToggleKey.Value;
-            _pendingKey = _originalKey;
-            UpdateKeyDisplay(_originalKey);
+            // Initialize current key displays
+            ResetBindingToCurrent(_menuToggleBinding);
+            ResetBindingToCurrent(_routesToggleBinding);
             
-            ModLogger.Instance?.Info($"[SettingsController] Initialization complete - Current key: {_originalKey}, Elements found: Button={_settingsButton != null}, Panel={_settingsMenuPanel != null}, Record={_recordToggleButton != null}");
+            ModLogger.Instance?.Info($"[SettingsController] Initialization complete - MenuKey: {_menuToggleBinding.Config.Value}, RoutesKey: {_routesToggleBinding.Config?.Value}, Elements found: Button={_settingsButton != null}, Panel={_settingsMenuPanel != null}");
+        }
+        
+        private void ResetBindingToCurrent(KeyBinding binding)
+        {
+            if (binding?.Config == null) return;
+            binding.OriginalKey = binding.Config.Value;
+            binding.PendingKey = binding.OriginalKey;
+            binding.IsRecording = false;
+            UpdateKeyDisplay(binding);
+        }
+        
+        private KeyBinding GetRecordingBinding()
+        {
+            if (_menuToggleBinding != null && _menuToggleBinding.IsRecording) return _menuToggleBinding;
+            if (_routesToggleBinding != null && _routesToggleBinding.IsRecording) return _routesToggleBinding;
+            return null;
         }
         
         private void OnSettingsButtonClick()
@@ -276,88 +371,98 @@ namespace FollowMePeak.ModMenu.UI
                 
                 if (!isActive)
                 {
-                    // Reset to current saved key when opening
-                    _originalKey = Plugin.ModMenuToggleKey.Value;
-                    _pendingKey = _originalKey;
-                    UpdateKeyDisplay(_originalKey);
+                    ResetBindingToCurrent(_menuToggleBinding);
+                    ResetBindingToCurrent(_routesToggleBinding);
                 }
             }
         }
         
-        private void StartKeyRecording()
+        private void StartKeyRecording(KeyBinding target)
         {
-            ModLogger.Instance?.Info("[SettingsController] Starting key recording...");
-            _isRecording = true;
+            if (target == null || target.Config == null) return;
+            
+            // Cancel any other active recording first
+            var currentlyRecording = GetRecordingBinding();
+            if (currentlyRecording != null && currentlyRecording != target)
+            {
+                StopKeyRecording(currentlyRecording, null);
+            }
+            
+            ModLogger.Instance?.Info($"[SettingsController] Starting key recording for {target.Name}...");
+            target.IsRecording = true;
             
             if (_pressAnyKeyText != null)
                 _pressAnyKeyText.SetActive(true);
             
-            if (_recordToggleButton != null)
-                _recordToggleButton.interactable = false;
+            if (target.RecordButton != null)
+                target.RecordButton.interactable = false;
             
-            // Disable other UI elements during recording
-            if (_applyButton != null)
-                _applyButton.interactable = false;
-            if (_resetButton != null)
-                _resetButton.interactable = false;
-            if (_closeButton != null)
-                _closeButton.interactable = false;
+            // Disable control buttons during recording
+            SetControlButtonsInteractable(false);
         }
         
-        private void StopKeyRecording(KeyCode? newKey = null)
+        private void StopKeyRecording(KeyBinding target, KeyCode? newKey)
         {
-            ModLogger.Instance?.Info($"[SettingsController] Stopping key recording. New key: {newKey}");
-            _isRecording = false;
+            if (target == null) return;
             
-            if (_pressAnyKeyText != null)
+            ModLogger.Instance?.Info($"[SettingsController] Stopping key recording for {target.Name}. New key: {newKey}");
+            target.IsRecording = false;
+            
+            if (_pressAnyKeyText != null && GetRecordingBinding() == null)
                 _pressAnyKeyText.SetActive(false);
             
-            if (_recordToggleButton != null)
-                _recordToggleButton.interactable = true;
+            if (target.RecordButton != null)
+                target.RecordButton.interactable = true;
             
-            // Re-enable UI elements
-            if (_applyButton != null)
-                _applyButton.interactable = true;
-            if (_resetButton != null)
-                _resetButton.interactable = true;
-            if (_closeButton != null)
-                _closeButton.interactable = true;
+            // Re-enable control buttons if nothing is recording
+            if (GetRecordingBinding() == null)
+            {
+                SetControlButtonsInteractable(true);
+            }
             
             if (newKey.HasValue)
             {
-                _pendingKey = newKey.Value;
-                UpdateKeyDisplay(_pendingKey);
-                ModLogger.Instance?.Info($"[SettingsController] Recorded new key: {_pendingKey}");
+                target.PendingKey = newKey.Value;
+                UpdateKeyDisplay(target);
+                ModLogger.Instance?.Info($"[SettingsController] Recorded new key for {target.Name}: {target.PendingKey}");
             }
             else
             {
-                ModLogger.Instance?.Info("[SettingsController] Key recording cancelled");
+                ModLogger.Instance?.Info($"[SettingsController] Key recording cancelled for {target.Name}");
             }
+        }
+        
+        private void SetControlButtonsInteractable(bool interactable)
+        {
+            if (_applyButton != null)
+                _applyButton.interactable = interactable;
+            if (_resetButton != null)
+                _resetButton.interactable = interactable;
+            if (_closeButton != null)
+                _closeButton.interactable = interactable;
         }
         
         public void Update()
         {
-            if (!_isRecording) return;
+            var recording = GetRecordingBinding();
+            if (recording == null) return;
             
             // Check for ESC to cancel
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                StopKeyRecording(null);
+                StopKeyRecording(recording, null);
                 return;
             }
             
             // Check all KeyCodes
             foreach (KeyCode key in System.Enum.GetValues(typeof(KeyCode)))
             {
-                // Skip invalid keys
                 if (InvalidKeys.Contains(key)) continue;
-                
-                // Skip joystick buttons for now (no gamepad support yet)
                 if (key.ToString().StartsWith("JoystickButton")) continue;
                 
                 if (Input.GetKeyDown(key))
                 {
-                    StopKeyRecording(key);
+                    StopKeyRecording(recording, key);
                     break;
                 }
             }
@@ -365,58 +470,78 @@ namespace FollowMePeak.ModMenu.UI
         
         private void OnApplyClick()
         {
-            ModLogger.Instance?.Info($"[SettingsController] Apply clicked. Pending: {_pendingKey}, Current: {Plugin.ModMenuToggleKey.Value}");
+            ModLogger.Instance?.Info("[SettingsController] Apply clicked");
             
-            if (_pendingKey != Plugin.ModMenuToggleKey.Value)
-            {
-                Plugin.ModMenuToggleKey.Value = _pendingKey;
-                Plugin.Instance.Config.Save();
-                _originalKey = _pendingKey;
-                
-                ModLogger.Instance?.Info($"[SettingsController] Applied new toggle key: {_pendingKey}");
-            }
+            ApplyBindingIfChanged(_menuToggleBinding);
+            ApplyBindingIfChanged(_routesToggleBinding);
+            
+            Plugin.Instance.Config.Save();
             
             if (_settingsMenuPanel != null)
                 _settingsMenuPanel.SetActive(false);
         }
         
+        private void ApplyBindingIfChanged(KeyBinding binding)
+        {
+            if (binding?.Config == null) return;
+            if (binding.PendingKey != binding.Config.Value)
+            {
+                binding.Config.Value = binding.PendingKey;
+                binding.OriginalKey = binding.PendingKey;
+                ModLogger.Instance?.Info($"[SettingsController] Applied new {binding.Name} key: {binding.PendingKey}");
+            }
+        }
+        
         private void OnResetClick()
         {
             ModLogger.Instance?.Info("[SettingsController] Reset clicked");
-            _pendingKey = KeyCode.F1;
-            UpdateKeyDisplay(_pendingKey);
+            
+            if (_menuToggleBinding != null)
+            {
+                _menuToggleBinding.PendingKey = KeyCode.F1;
+                UpdateKeyDisplay(_menuToggleBinding);
+            }
+            if (_routesToggleBinding != null)
+            {
+                _routesToggleBinding.PendingKey = KeyCode.F2;
+                UpdateKeyDisplay(_routesToggleBinding);
+            }
         }
         
         private void OnCloseClick()
         {
             ModLogger.Instance?.Info("[SettingsController] Close clicked");
             
-            // Revert to original if not applied
-            if (_pendingKey != _originalKey)
-            {
-                _pendingKey = _originalKey;
-                UpdateKeyDisplay(_originalKey);
-            }
+            RevertBindingIfNeeded(_menuToggleBinding);
+            RevertBindingIfNeeded(_routesToggleBinding);
             
             if (_settingsMenuPanel != null)
                 _settingsMenuPanel.SetActive(false);
         }
         
-        private void UpdateKeyDisplay(KeyCode key)
+        private void RevertBindingIfNeeded(KeyBinding binding)
         {
-            if (_actualToggleText != null)
+            if (binding?.Config == null) return;
+            if (binding.PendingKey != binding.OriginalKey)
             {
-                string displayName = FormatKeyName(key);
-                _actualToggleText.text = displayName;
-                ModLogger.Instance?.Info($"[SettingsController] Updated key display to: {displayName}");
+                binding.PendingKey = binding.OriginalKey;
+                UpdateKeyDisplay(binding);
             }
+        }
+        
+        private void UpdateKeyDisplay(KeyBinding binding)
+        {
+            if (binding?.DisplayText == null) return;
+            
+            string displayName = FormatKeyName(binding.PendingKey);
+            binding.DisplayText.text = displayName;
+            ModLogger.Instance?.Info($"[SettingsController] Updated {binding.Name} key display to: {displayName}");
         }
         
         private string FormatKeyName(KeyCode key)
         {
             string name = key.ToString();
             
-            // Special formatting for better readability
             if (name.StartsWith("Alpha"))
                 return name.Replace("Alpha", "");
             if (name.StartsWith("Keypad"))
