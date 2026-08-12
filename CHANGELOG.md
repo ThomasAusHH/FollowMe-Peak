@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.7] - 2026-08-12
+
+### New Features
+- **New level preview image** - Added the image for the new level to the mod menu (updated modui AssetBundle).
+
 ## [1.0.6] - 2026-06-27
 
 ### New Features

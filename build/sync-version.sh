@@ -11,7 +11,7 @@ sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|g" "$SCRIPT_DIR/../s
 echo "  ✔ src/FollowMePeak.csproj"
 
 # 2. Plugin.cs BepInPlugin attribute
-sed -i "s|\[BepInPlugin(\"com.thomasaushh.followmepeak\", \"FollowMe-Peak\", \".*\"\)\]|[BepInPlugin(\"com.thomasaushh.followmepeak\", \"FollowMe-Peak\", \"$VERSION\")]|g" "$SCRIPT_DIR/../src/Plugin.cs"
+sed -i "s|\[BepInPlugin(\"com.thomasaushh.followmepeak\", \"FollowMe-Peak\", \".*\")\]|[BepInPlugin(\"com.thomasaushh.followmepeak\", \"FollowMe-Peak\", \"$VERSION\")]|g" "$SCRIPT_DIR/../src/Plugin.cs"
 echo "  ✔ src/Plugin.cs"
 
 # 3. Server package.json

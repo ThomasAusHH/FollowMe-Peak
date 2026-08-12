@@ -17,7 +17,7 @@ using FollowMePeak.Utils;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.6")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.7")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
