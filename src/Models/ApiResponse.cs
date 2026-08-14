@@ -43,6 +43,19 @@ namespace FollowMePeak.Models
         public bool Has_More { get; set; }
     }
 
+    public class RatingSubmitResponse
+    {
+        public float RatingAvg { get; set; }
+        public int RatingCount { get; set; }
+    }
+
+    public class ReportSubmitResponse
+    {
+        public int ReportCount { get; set; }
+        public bool CommunityFlagged { get; set; }
+        public bool AlreadyReported { get; set; }
+    }
+
     public class ServerClimbData
     {
         public string Id { get; set; }
@@ -68,6 +81,14 @@ namespace FollowMePeak.Models
         public long UploadTime { get; set; } // New camelCase format
         public string Created_At { get; set; }
         public string CreatedAt { get; set; } // New camelCase format
+        public float Rating_Avg { get; set; } = 0f;
+        public float RatingAvg { get; set; } = 0f; // New camelCase format
+        public int Rating_Count { get; set; } = 0;
+        public int RatingCount { get; set; } = 0; // New camelCase format
+        public int Report_Count { get; set; } = 0;
+        public int ReportCount { get; set; } = 0; // New camelCase format
+        public bool Community_Flagged { get; set; } = false;
+        public bool CommunityFlagged { get; set; } = false; // New camelCase format
 
         // Convert to local ClimbData format
         public ClimbData ToClimbData()
@@ -146,6 +167,12 @@ namespace FollowMePeak.Models
             {
                 climbData.GenerateShareCode();
             }
+            
+            // Community rating & report aggregates (handle both naming formats)
+            climbData.RatingAverage = RatingAvg != 0f ? RatingAvg : Rating_Avg;
+            climbData.RatingCount = RatingCount != 0 ? RatingCount : Rating_Count;
+            climbData.ReportCount = ReportCount != 0 ? ReportCount : Report_Count;
+            climbData.IsCommunityFlagged = CommunityFlagged || Community_Flagged;
             
             return climbData;
         }

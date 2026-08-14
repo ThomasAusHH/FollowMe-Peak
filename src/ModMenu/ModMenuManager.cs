@@ -37,6 +37,7 @@ namespace FollowMePeak.ModMenu
         public static Services.ClimbDownloadService DownloadService { get; set; }
         public static Services.ClimbDataService ClimbDataService { get; set; }
         public static Managers.ClimbVisualizationManager VisualizationManager { get; set; }
+        public static Services.RatingService RatingService { get; set; }
         
         public ModMenuManager()
         {

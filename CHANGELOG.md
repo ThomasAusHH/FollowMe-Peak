@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.9] - 2026-08-14
+
+### New Features
+- **Community rating system** - Rate cloud climbs with 1-5 stars directly in the mod menu. The average rating and vote count are shown on every climb, and your own vote can be changed at any time.
+- **Community cheat reporting** - Report suspected cheated climbs via the report button (with confirmation dialog). Climbs with 3 or more community reports get a warning badge for everyone.
+- **Best climbs first** - The climb list is now sorted by community rating by default, so the best routes appear at the top. Sorting by duration via the menu still works as before.
+
+### Fixes
+- **Fixed uploads failing permanently after rate limiting (HTTP 429)** - Uploads that hit the server rate limit are now retried automatically with an increasing delay instead of being dropped.
+
+## [1.0.8] - 2026-08-12
+
+### Fixes
+- **Fixed micro-stuttering during gameplay** - The fly-mod detection scanned every object in the scene twice per second. It now only checks the local player using cached data, eliminating the recurring performance spikes.
+- Fixed false-positive fly detections caused by remote players in multiplayer.
+
 ## [1.0.7] - 2026-08-12
 
 ### New Features

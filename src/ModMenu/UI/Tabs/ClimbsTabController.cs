@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using System.Collections.Generic;
 using System.Linq;
@@ -59,14 +60,17 @@ namespace FollowMePeak.ModMenu.UI.Tabs
         // Services
         private ClimbDataService _climbDataService;
         private ClimbVisualizationManager _visualizationManager;
+        private RatingService _ratingService;
         
         public GameObject ClimbsPage => _climbsPage;
         
         public void Initialize(GameObject root, VPSApiService apiService, 
-            ClimbDataService climbDataService, ClimbVisualizationManager visualizationManager)
+            ClimbDataService climbDataService, ClimbVisualizationManager visualizationManager,
+            RatingService ratingService)
         {
             _climbDataService = climbDataService;
             _visualizationManager = visualizationManager;
+            _ratingService = ratingService;
             
             FindUIElements(root);
             InitializeComponents(apiService);
@@ -775,9 +779,12 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
             else
             {
-                // Without duration sorting: just sort by visibility
-                var visibleClimbs = climbsToDisplay.Where(c => _visibleClimbIds.Contains(c.Id.ToString())).ToList();
-                var nonVisibleClimbs = climbsToDisplay.Where(c => !_visibleClimbIds.Contains(c.Id.ToString())).ToList();
+                // Default: community rating, best first - unrated climbs (0.0) sink to the bottom.
+                // Visibility still takes priority over rating.
+                var visibleClimbs = climbsToDisplay.Where(c => _visibleClimbIds.Contains(c.Id.ToString()))
+                    .OrderByDescending(c => c.RatingAverage).ThenByDescending(c => c.RatingCount).ToList();
+                var nonVisibleClimbs = climbsToDisplay.Where(c => !_visibleClimbIds.Contains(c.Id.ToString()))
+                    .OrderByDescending(c => c.RatingAverage).ThenByDescending(c => c.RatingCount).ToList();
                 climbsToDisplay = visibleClimbs.Concat(nonVisibleClimbs).ToList();
             }
             
@@ -851,6 +858,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             SetupCopyButton(climbItem, climb);
             SetOfflineIndicator(climbItem, climb);
             SetDeathClimbIndicator(climbItem, climb);
+            SetupRatingElements(climbItem, climb);
             
             ModLogger.Instance?.Info($"[ClimbsTab] Populated prefab data for climb {climb.Id} - Biome: {climb.BiomeName}, ShareCode: {climb.ShareCode}, Duration: {climb.DurationInSeconds}s, IsOffline: {!climb.IsFromCloud}");
         }
@@ -1066,6 +1074,188 @@ namespace FollowMePeak.ModMenu.UI.Tabs
             }
             
             return displayClimbs;
+        }
+        
+        // Community rating & report UI. All elements are optional - an old AssetBundle
+        // without them simply skips the feature (graceful degradation).
+        private void SetupRatingElements(GameObject item, ClimbData climb)
+        {
+            var ratingText = item.transform.Find("ClimbRatingText")?.GetComponent<TextMeshProUGUI>();
+            var rateButton = item.transform.Find("ClimbRateButton")?.GetComponent<Button>();
+            var reportButton = item.transform.Find("ClimbReportButton")?.GetComponent<Button>();
+            var ratingPanel = item.transform.Find("RatingPanel")?.gameObject;
+            var reportPanel = item.transform.Find("ReportPanel")?.gameObject;
+            
+            if (ratingText == null && rateButton == null && reportButton == null) return;
+            
+            // Only cloud climbs exist server-side and can be rated/reported
+            if (!climb.IsFromCloud)
+            {
+                if (ratingText != null) ratingText.gameObject.SetActive(false);
+                if (rateButton != null) rateButton.gameObject.SetActive(false);
+                if (reportButton != null) reportButton.gameObject.SetActive(false);
+                if (ratingPanel != null) ratingPanel.SetActive(false);
+                if (reportPanel != null) reportPanel.SetActive(false);
+                return;
+            }
+            
+            if (ratingPanel != null) ratingPanel.SetActive(false);
+            if (reportPanel != null) reportPanel.SetActive(false);
+            UpdateRatingDisplay(ratingText, climb);
+            
+            if (rateButton != null && ratingPanel != null)
+            {
+                var starImages = new Image[6]; // index 1..5
+                
+                rateButton.onClick.RemoveAllListeners();
+                rateButton.onClick.AddListener(() => {
+                    bool show = !ratingPanel.activeSelf;
+                    ratingPanel.SetActive(show);
+                    if (show)
+                    {
+                        // Show the player's existing vote when opening the panel
+                        PaintStars(starImages, _ratingService?.GetMyRating(climb.ShareCode) ?? 0);
+                        if (reportPanel != null) reportPanel.SetActive(false);
+                    }
+                });
+                
+                for (int stars = 1; stars <= 5; stars++)
+                {
+                    var starButton = ratingPanel.transform.Find($"RatingStar{stars}")?.GetComponent<Button>();
+                    if (starButton == null) continue;
+                    
+                    // Star colors are driven manually (hover paints stars 1..N),
+                    // so the Button's own color transition must not interfere
+                    starButton.transition = Selectable.Transition.None;
+                    starImages[stars] = starButton.targetGraphic as Image != null
+                        ? (Image)starButton.targetGraphic
+                        : starButton.GetComponent<Image>();
+                    
+                    int selectedStars = stars; // capture per-iteration value for the closure
+                    starButton.onClick.RemoveAllListeners();
+                    starButton.onClick.AddListener(() => {
+                        ratingPanel.SetActive(false);
+                        SubmitRatingForClimb(climb, selectedStars, ratingText);
+                    });
+                    
+                    var trigger = starButton.gameObject.GetComponent<EventTrigger>();
+                    if (trigger == null) trigger = starButton.gameObject.AddComponent<EventTrigger>();
+                    var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                    enter.callback.AddListener(_ => PaintStars(starImages, selectedStars));
+                    trigger.triggers.Add(enter);
+                    var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                    exit.callback.AddListener(_ => PaintStars(starImages, _ratingService?.GetMyRating(climb.ShareCode) ?? 0));
+                    trigger.triggers.Add(exit);
+                }
+                
+                var cancelButton = ratingPanel.transform.Find("RatingCancelButton")?.GetComponent<Button>();
+                if (cancelButton != null)
+                {
+                    cancelButton.onClick.RemoveAllListeners();
+                    cancelButton.onClick.AddListener(() => ratingPanel.SetActive(false));
+                }
+            }
+            
+            if (reportButton != null)
+            {
+                if (reportPanel == null)
+                {
+                    // Bundle without the confirm panel - no dead button
+                    reportButton.gameObject.SetActive(false);
+                }
+                else
+                {
+                    reportButton.onClick.RemoveAllListeners();
+                    reportButton.onClick.AddListener(() => {
+                        bool show = !reportPanel.activeSelf;
+                        reportPanel.SetActive(show);
+                        if (show && ratingPanel != null) ratingPanel.SetActive(false);
+                    });
+                    
+                    var confirmButton = reportPanel.transform.Find("ReportConfirmButton")?.GetComponent<Button>();
+                    if (confirmButton != null)
+                    {
+                        confirmButton.onClick.RemoveAllListeners();
+                        confirmButton.onClick.AddListener(() => SubmitReportForClimb(climb, reportButton, reportPanel, ratingText));
+                    }
+                    
+                    var reportCancelButton = reportPanel.transform.Find("ReportCancelButton")?.GetComponent<Button>();
+                    if (reportCancelButton != null)
+                    {
+                        reportCancelButton.onClick.RemoveAllListeners();
+                        reportCancelButton.onClick.AddListener(() => reportPanel.SetActive(false));
+                    }
+                }
+            }
+        }
+        
+        private void UpdateRatingDisplay(TextMeshProUGUI ratingText, ClimbData climb)
+        {
+            if (ratingText == null) return;
+            
+            // Plain ASCII only - the game font has no ★/⚠ glyphs (star/warning are images in the prefab)
+            string text;
+            if (climb.RatingCount > 0)
+            {
+                text = $"{climb.RatingAverage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} ({climb.RatingCount})";
+            }
+            else
+            {
+                text = "-";
+            }
+            
+            if (climb.IsCommunityFlagged)
+            {
+                text = $"! {text}";
+            }
+            
+            ratingText.text = text;
+        }
+        
+        private static readonly Color StarHighlightColor = new Color(1f, 0.8f, 0.1f); // gold
+        private static readonly Color StarEmptyColor = new Color(0.55f, 0.55f, 0.55f); // gray
+        
+        // Paints stars 1..count gold, the rest gray
+        private void PaintStars(Image[] starImages, int count)
+        {
+            for (int i = 1; i <= 5; i++)
+            {
+                if (starImages[i] == null) continue;
+                starImages[i].color = i <= count ? StarHighlightColor : StarEmptyColor;
+            }
+        }
+        
+        private void SubmitRatingForClimb(ClimbData climb, int stars, TextMeshProUGUI ratingText)
+        {
+            if (_ratingService == null) return;
+            
+            if (ratingText != null) ratingText.text = "...";
+            
+            _ratingService.SubmitRating(climb, stars, (success, avg, count) => {
+                // Climb object already carries the fresh values on success; on failure this restores the old display
+                UpdateRatingDisplay(ratingText, climb);
+            });
+        }
+        
+        // Called from the ReportPanel's confirm button - the panel itself prevents accidental reports
+        private void SubmitReportForClimb(ClimbData climb, Button reportButton, GameObject reportPanel, TextMeshProUGUI ratingText)
+        {
+            if (_ratingService == null) return;
+            
+            if (reportPanel != null) reportPanel.SetActive(false);
+            if (reportButton != null) reportButton.interactable = false;
+            
+            _ratingService.SubmitReport(climb, "", (success, communityFlagged) => {
+                if (success)
+                {
+                    // Picks up the "! " badge if the community flag threshold was hit
+                    UpdateRatingDisplay(ratingText, climb);
+                }
+                else if (reportButton != null)
+                {
+                    reportButton.interactable = true;
+                }
+            });
         }
         
         private void OnClimbVisibilityToggled(ClimbData climb, bool isVisible)

@@ -194,6 +194,126 @@ namespace FollowMePeak.Services
                 climbData, levelId, isFlagged, detectionScore, detectionReason, callback));
         }
 
+        // Submit a community rating (1-5 stars) for a cloud climb
+        public void SubmitRating(string climbId, string voterId, int stars, System.Action<bool, RatingSubmitResponse, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(false, null, "Cloud sync disabled");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(SubmitRatingCoroutine(climbId, voterId, stars, callback));
+        }
+
+        private IEnumerator SubmitRatingCoroutine(string climbId, string voterId, int stars, System.Action<bool, RatingSubmitResponse, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/climbs/{climbId}/rating";
+
+            var payload = new { voterId, stars };
+            string json = JsonConvert.SerializeObject(payload, CommonJsonSettings.Compact);
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
+                request.timeout = _config.TimeoutSeconds;
+
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ApiResponse<RatingSubmitResponse>>(request.downloadHandler.text, CommonJsonSettings.Default);
+                        if (response.Success)
+                        {
+                            callback?.Invoke(true, response.Data, null);
+                        }
+                        else
+                        {
+                            _logger.Error($"Rating rejected: {response.Error}");
+                            callback?.Invoke(false, null, response.Error ?? "Rating rejected");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Error($"Failed to parse rating response: {e.Message}");
+                        callback?.Invoke(false, null, "Parse error");
+                    }
+                }
+                else
+                {
+                    string error = $"Rating request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.Error(error);
+                    callback?.Invoke(false, null, error);
+                }
+            }
+        }
+
+        // Submit a community report (cheat suspicion) for a cloud climb
+        public void SubmitReport(string climbId, string voterId, string reason, System.Action<bool, ReportSubmitResponse, string> callback)
+        {
+            if (!_config.EnableCloudSync)
+            {
+                callback?.Invoke(false, null, "Cloud sync disabled");
+                return;
+            }
+
+            _coroutineRunner.StartCoroutine(SubmitReportCoroutine(climbId, voterId, reason, callback));
+        }
+
+        private IEnumerator SubmitReportCoroutine(string climbId, string voterId, string reason, System.Action<bool, ReportSubmitResponse, string> callback)
+        {
+            string url = $"{_config.BaseUrl}/api/climbs/{climbId}/report";
+
+            var payload = new { voterId, reason };
+            string json = JsonConvert.SerializeObject(payload, CommonJsonSettings.Compact);
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
+            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("X-API-Key", _config.ApiKey);
+                request.timeout = _config.TimeoutSeconds;
+
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        var response = JsonConvert.DeserializeObject<ApiResponse<ReportSubmitResponse>>(request.downloadHandler.text, CommonJsonSettings.Default);
+                        if (response.Success)
+                        {
+                            callback?.Invoke(true, response.Data, null);
+                        }
+                        else
+                        {
+                            _logger.Error($"Report rejected: {response.Error}");
+                            callback?.Invoke(false, null, response.Error ?? "Report rejected");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Error($"Failed to parse report response: {e.Message}");
+                        callback?.Invoke(false, null, "Parse error");
+                    }
+                }
+                else
+                {
+                    string error = $"Report request failed: {request.error} (HTTP {request.responseCode})";
+                    _logger.Error(error);
+                    callback?.Invoke(false, null, error);
+                }
+            }
+        }
+
         private IEnumerator UploadClimbCoroutine(ClimbData climbData, string levelId, System.Action<bool, string> callback)
         {
             // Input validation

@@ -24,6 +24,7 @@ namespace FollowMePeak.ModMenu
         private ClimbDownloadService _downloadService;
         private ClimbDataService _climbDataService;
         private ClimbVisualizationManager _visualizationManager;
+        private RatingService _ratingService;
         
         public void Initialize(GameObject menuRoot)
         {
@@ -54,13 +55,14 @@ namespace FollowMePeak.ModMenu
             _downloadService = ModMenuManager.DownloadService;
             _climbDataService = ModMenuManager.ClimbDataService;
             _visualizationManager = ModMenuManager.VisualizationManager;
+            _ratingService = ModMenuManager.RatingService;
         }
         
         private void InitializeTabControllers(GameObject menuRoot)
         {
             // Initialize Climbs tab
             _climbsTab = new ClimbsTabController();
-            _climbsTab.Initialize(menuRoot, _apiService, _climbDataService, _visualizationManager);
+            _climbsTab.Initialize(menuRoot, _apiService, _climbDataService, _visualizationManager, _ratingService);
             
             // Initialize Cloud Sync tab
             _cloudSyncTab = new CloudSyncTabController();

@@ -32,6 +32,12 @@ namespace FollowMePeak.Models
         // Death climb flag - climb where player died  
         public bool WasDeathClimb { get; set; } = false;
         
+        // Community rating & report data (runtime only, populated for cloud climbs)
+        public float RatingAverage { get; set; } = 0f;
+        public int RatingCount { get; set; } = 0;
+        public int ReportCount { get; set; } = 0;
+        public bool IsCommunityFlagged { get; set; } = false;
+        
         // Generate user-friendly save name if empty
         public string GetDisplayName()
         {

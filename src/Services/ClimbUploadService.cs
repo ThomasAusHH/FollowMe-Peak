@@ -19,6 +19,11 @@ namespace FollowMePeak.Services
         
         private List<UploadQueueItem> _uploadQueue = new List<UploadQueueItem>();
         private bool _isProcessingQueue = false;
+        
+        // Rate limit (HTTP 429) backoff state
+        private int _consecutiveRateLimits = 0;
+        private const double InitialRateLimitDelaySeconds = 60;
+        private const double MaxRateLimitDelaySeconds = 900;
 
         public ClimbUploadService(ModLogger logger, VPSApiService apiService, ServerConfigService configService)
         {
@@ -221,7 +226,23 @@ namespace FollowMePeak.Services
                 if (success)
                 {
                     item.Status = UploadStatus.Completed;
+                    _consecutiveRateLimits = 0;
                     _logger.Info($"Successfully uploaded climb {item.ClimbData.Id}");
+                }
+                else if (IsRateLimitError(error))
+                {
+                    // 429 is transient - do not burn retry attempts, pause the queue with backoff instead
+                    _consecutiveRateLimits++;
+                    double delay = Math.Min(
+                        InitialRateLimitDelaySeconds * Math.Pow(2, _consecutiveRateLimits - 1),
+                        MaxRateLimitDelaySeconds);
+                    
+                    item.Status = UploadStatus.Pending;
+                    item.LastError = error;
+                    _logger.Warning($"Server rate limit reached (HTTP 429) - pausing upload queue for {delay:0} seconds. Climb {item.ClimbData.Id} stays queued.");
+                    SaveQueue();
+                    Plugin.Instance.StartCoroutine(ResumeQueueAfterDelay((float)delay));
+                    return; // Skip WaitAndProcessNext - queue resumes via ResumeQueueAfterDelay
                 }
                 else
                 {
@@ -243,6 +264,18 @@ namespace FollowMePeak.Services
                 // Wait a bit before processing next item to avoid overwhelming server
                 Plugin.Instance.StartCoroutine(WaitAndProcessNext(items, index + 1, 2.0f));
             });
+        }
+        
+        private static bool IsRateLimitError(string error)
+        {
+            return error != null && error.Contains("HTTP 429");
+        }
+        
+        private System.Collections.IEnumerator ResumeQueueAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            _isProcessingQueue = false;
+            ProcessQueue();
         }
 
         private System.Collections.IEnumerator WaitAndProcessNext(List<UploadQueueItem> items, int nextIndex, float delay)
@@ -331,6 +364,14 @@ namespace FollowMePeak.Services
                     foreach (var item in _uploadQueue.Where(x => x.Status == UploadStatus.Uploading))
                     {
                         item.Status = UploadStatus.Pending;
+                    }
+                    
+                    // Recover items that permanently failed due to server rate limiting (HTTP 429) -
+                    // these are transient failures and deserve a fresh start on next launch
+                    foreach (var item in _uploadQueue.Where(x => x.Status == UploadStatus.Failed && IsRateLimitError(x.LastError)))
+                    {
+                        item.Status = UploadStatus.Pending;
+                        item.RetryCount = 0;
                     }
                     
                     _logger.Info($"Loaded upload queue with {_uploadQueue.Count} items");

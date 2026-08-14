@@ -11,6 +11,7 @@ A BepInEx plugin for Peak that automatically records paths in levels and display
 - **Advanced Filtering**: Easy search and filter climbs through the UI
 - **Biome-specific Paths**: Saves paths separately by biomes/level areas
 - **Cloud Synchronization**: Share your paths with other players via an optional server
+- **Community Ratings**: Rate cloud climbs with 1-5 stars and report suspected cheated routes
 - **Easy Controls**: Configurable hotkey (default F1) to open the settings menu
 - **Persistent Storage**: Paths are saved between game sessions
 
@@ -60,6 +61,27 @@ If the plugin doesn't work:
 3. Restart the game after installation
 
 ## Changelog
+
+### v1.0.9
+
+**New Features**
+- **Community rating system** - Rate cloud climbs with 1-5 stars directly in the mod menu. The average rating and vote count are shown on every climb.
+- **Community cheat reporting** - Report suspected cheated climbs via the report button (with confirmation dialog). Climbs with 3 or more reports get a warning badge for everyone.
+- **Best climbs first** - The climb list is now sorted by community rating by default. Sorting by duration via the menu still works.
+
+**Fixes**
+- Fixed uploads failing permanently after server rate limiting (HTTP 429) - they are now retried automatically with an increasing delay.
+
+### v1.0.8
+
+**Fixes**
+- **Fixed micro-stuttering during gameplay** - The fly-mod detection scanned every object in the scene twice per second. It now only checks the local player using cached data, eliminating the recurring performance spikes.
+- Fixed false-positive fly detections caused by remote players in multiplayer.
+
+### v1.0.7
+
+**New Features**
+- **New level preview image** - Added the image for the new level to the mod menu.
 
 ### v1.0.6
 

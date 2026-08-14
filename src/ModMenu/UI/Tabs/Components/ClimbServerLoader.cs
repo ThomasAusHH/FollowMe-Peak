@@ -93,7 +93,7 @@ namespace FollowMePeak.ModMenu.UI.Tabs.Components
         }
         
         private void LoadClimbsFromServer(string levelId, string biomeFilter = "", int? ascentFilter = null, 
-            string peakCodeFilter = "", string sortBy = "created_at", string sortOrder = "desc")
+            string peakCodeFilter = "", string sortBy = "rating", string sortOrder = "desc")
         {
             if (_apiService == null)
             {

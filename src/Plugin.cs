@@ -17,7 +17,7 @@ using FollowMePeak.Utils;
 
 namespace FollowMePeak
 {
-    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.7")]
+    [BepInPlugin("com.thomasaushh.followmepeak", "FollowMe-Peak", "1.0.9")]
     public class Plugin : BaseUnityPlugin
     {
         public static Plugin Instance { get; private set; }
@@ -29,6 +29,7 @@ namespace FollowMePeak
         
         // Gameplay Configuration  
         public static BepInEx.Configuration.ConfigEntry<bool> SaveDeathClimbs;
+        public static BepInEx.Configuration.ConfigEntry<string> CommunityVoterId;
         
         // Logging Configuration
         public static BepInEx.Configuration.ConfigEntry<LogLevel> LoggingLevel;
@@ -46,6 +47,7 @@ namespace FollowMePeak
         private VPSApiService _vpsApiService;
         private ClimbUploadService _climbUploadService;
         private ClimbDownloadService _climbDownloadService;
+        private RatingService _ratingService;
         
         // Mod Menu
         private ModMenuManager _modMenuManager;
@@ -147,6 +149,7 @@ namespace FollowMePeak
             _vpsApiService = new VPSApiService(_modLogger, _serverConfigService.Config, this);
             _climbUploadService = new ClimbUploadService(_modLogger, _vpsApiService, _serverConfigService);
             _climbDownloadService = new ClimbDownloadService(_modLogger, _vpsApiService, _serverConfigService, _climbDataService);
+            _ratingService = new RatingService(_modLogger, _vpsApiService);
             
             // Initialize Mod Menu with services
             ModMenuManager.ServerConfig = _serverConfigService;
@@ -155,6 +158,7 @@ namespace FollowMePeak
             ModMenuManager.DownloadService = _climbDownloadService;
             ModMenuManager.ClimbDataService = _climbDataService;
             ModMenuManager.VisualizationManager = _visualizationManager;
+            ModMenuManager.RatingService = _ratingService;
             _modMenuManager = new ModMenuManager();
             
             // Load AssetBundle for Mod Menu
@@ -204,6 +208,19 @@ namespace FollowMePeak
                 LogLevel.Error,
                 "Logging level: None=0, Error=1, Warning=2, Info=3, Debug=4, Verbose=5"
             );
+            
+            // Community Configuration - anonymous voter ID for ratings/reports (auto-generated once)
+            CommunityVoterId = Config.Bind(
+                "Community",
+                "VoterId",
+                "",
+                "Anonymous voter ID for community ratings and reports (auto-generated, do not share)"
+            );
+            if (string.IsNullOrEmpty(CommunityVoterId.Value))
+            {
+                CommunityVoterId.Value = Guid.NewGuid().ToString();
+                Config.Save();
+            }
             
             // Initialize ModLogger with config
             ModLogger.CurrentLevel = LoggingLevel.Value;
